@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
-import { HeartPulse, Mail, User, Phone, Eye, EyeOff, ShieldCheck, AlertCircle } from 'lucide-react'
+import { HeartPulse, Mail, User, Phone, Eye, EyeOff, ShieldCheck, AlertCircle, ArrowLeft } from 'lucide-react'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
@@ -89,6 +89,14 @@ export default function RegisterPage() {
             <HeartPulse className="w-6 h-6 text-brand-default" />
             CareConnect
           </div>
+
+          {/* Back button */}
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text mb-6 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
 
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-text-primary mb-1">Create your account</h1>

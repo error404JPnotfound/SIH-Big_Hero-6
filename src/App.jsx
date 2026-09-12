@@ -11,7 +11,6 @@ import PatientDashboard from './pages/patient/PatientDashboard'
 import Appointments from './pages/patient/Appointments'
 import Queue from './pages/patient/Queue'
 import Medicines from './pages/patient/Medicines'
-import Referrals from './pages/patient/Referrals'
 import Diagnostics from './pages/patient/Diagnostics'
 import Records from './pages/patient/Records'
 import FacilityFinder from './pages/patient/FacilityFinder'
@@ -50,7 +49,7 @@ export default function App() {
           <Route path="/patient/appointments" element={<Appointments />} />
           <Route path="/patient/queue" element={<Queue />} />
           <Route path="/patient/medicines" element={<Medicines />} />
-          <Route path="/patient/referrals" element={<Referrals />} />
+          <Route path="/patient/referrals" element={<Navigate to="/patient/appointments?tab=referrals" replace />} />
           <Route path="/patient/diagnostics" element={<Diagnostics />} />
           <Route path="/patient/records" element={<Records />} />
 

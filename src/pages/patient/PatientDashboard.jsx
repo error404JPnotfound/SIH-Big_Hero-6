@@ -89,14 +89,14 @@ function AppointmentCard({ appt, onView }) {
 // ── Quick Actions ─────────────────────────────────────────────────────────────
 function QuickActions({ navigate }) {
   const actions = [
-    { label: 'Book Appt',  icon: Calendar,      color: 'text-brand-default',     bg: 'bg-subtle',                hover: 'hover:bg-brand-default hover:text-white',     href: '/patient/appointments' },
-    { label: 'Telehealth', icon: PhoneCall,      color: 'text-brand-secondary',   bg: 'bg-brand-secondary-light', hover: 'hover:bg-brand-secondary hover:text-white',   href: '/patient/appointments?mode=tele' },
-    { label: 'Records',    icon: FileText,       color: 'text-status-success',    bg: 'bg-status-success-bg',     hover: 'hover:bg-status-success hover:text-white',    href: '/patient/records' },
-    { label: 'Referrals',  icon: ClipboardList,  color: 'text-status-warning',    bg: 'bg-status-warning-bg',     hover: 'hover:bg-status-warning hover:text-white',    href: '/patient/referrals' },
-    { label: 'Medicines',  icon: Pill,           color: 'text-brand-default',     bg: 'bg-subtle',                hover: 'hover:bg-brand-default hover:text-white',     href: '/patient/medicines' },
-    { label: 'Diagnostics',icon: Activity,       color: 'text-brand-secondary',   bg: 'bg-brand-secondary-light', hover: 'hover:bg-brand-secondary hover:text-white',   href: '/patient/diagnostics' },
-    { label: 'My Queue',   icon: Clock,          color: 'text-status-success',    bg: 'bg-status-success-bg',     hover: 'hover:bg-status-success hover:text-white',    href: '/patient/queue' },
-    { label: 'Emergency',  icon: AlertCircle,    color: 'text-status-critical',   bg: 'bg-status-critical-bg',    hover: 'hover:bg-status-critical hover:text-white',   href: 'tel:108' },
+    { label: 'Book Appt', icon: Calendar, color: 'text-brand-default', bg: 'bg-subtle', hover: 'hover:bg-brand-default hover:text-white', href: '/patient/appointments' },
+    { label: 'Telehealth', icon: PhoneCall, color: 'text-brand-secondary', bg: 'bg-brand-secondary-light', hover: 'hover:bg-brand-secondary hover:text-white', href: '/patient/appointments?mode=tele' },
+    { label: 'Records', icon: FileText, color: 'text-status-success', bg: 'bg-status-success-bg', hover: 'hover:bg-status-success hover:text-white', href: '/patient/records' },
+    { label: 'Referrals', icon: ClipboardList, color: 'text-status-warning', bg: 'bg-status-warning-bg', hover: 'hover:bg-status-warning hover:text-white', href: '/patient/appointments?tab=referrals' },
+    { label: 'Medicines', icon: Pill, color: 'text-brand-default', bg: 'bg-subtle', hover: 'hover:bg-brand-default hover:text-white', href: '/patient/medicines' },
+    { label: 'Diagnostics', icon: Activity, color: 'text-brand-secondary', bg: 'bg-brand-secondary-light', hover: 'hover:bg-brand-secondary hover:text-white', href: '/patient/diagnostics' },
+    { label: 'My Queue', icon: Clock, color: 'text-status-success', bg: 'bg-status-success-bg', hover: 'hover:bg-status-success hover:text-white', href: '/patient/queue' },
+    { label: 'Emergency', icon: AlertCircle, color: 'text-status-critical', bg: 'bg-status-critical-bg', hover: 'hover:bg-status-critical hover:text-white', href: '/patient/emergency' },
   ]
   return (
     <div className="grid grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
@@ -230,7 +230,9 @@ export default function PatientDashboard() {
             <>
               <KPICard title="Next Appointment" value={nextApptKPIVal}        subtitle={nextApptKPISubtitle} icon={Calendar}     color="teal"     />
               <KPICard title="Queue Position"   value={queueKPIVal}           subtitle={queueNo !== '—' ? 'Active today' : 'No queue today'}  icon={Clock}      color="blue"     />
-              <KPICard title="Active Referrals" value={String(activeRefs.length)} subtitle={firstDept || 'None active'} icon={ClipboardList} color="warning"  />
+              <div className="cursor-pointer" onClick={() => navigate('/patient/appointments?tab=referrals')}>
+                <KPICard title="Active Referrals" value={String(activeRefs.length)} subtitle={firstDept || 'None active'} icon={ClipboardList} color="warning"  />
+              </div>
               <KPICard title="Follow-ups Due"   value={String(dueSoonFU.length)}  subtitle={dueSoonFU.length ? `Next: ${nextDueDate}` : 'All on track'}  icon={AlertCircle} color="critical" />
             </>
           )}
@@ -273,7 +275,7 @@ export default function PatientDashboard() {
             <section>
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-lg font-bold text-text-primary">Active Referrals</h2>
-                <Button size="sm" variant="ghost" className="text-brand-default hover:bg-subtle" onClick={() => navigate('/patient/referrals')}>View all</Button>
+                <Button size="sm" variant="ghost" className="text-brand-default hover:bg-subtle" onClick={() => navigate('/patient/appointments?tab=referrals')}>View all</Button>
               </div>
               {loading ? (
                 <Skeleton className="h-28 rounded-2xl" />
@@ -285,7 +287,11 @@ export default function PatientDashboard() {
               ) : (
                 <div className="grid grid-cols-1 gap-4">
                   {activeRefs.slice(0, 2).map(ref => (
-                    <div key={ref.id} className="relative overflow-hidden flex flex-col gap-3 p-5 bg-surface-elevated rounded-2xl shadow-sm border border-border-subtle hover:border-brand-default/30 transition-colors">
+                    <div
+                      key={ref.id}
+                      onClick={() => navigate('/patient/appointments?tab=referrals')}
+                      className="cursor-pointer relative overflow-hidden flex flex-col gap-3 p-5 bg-surface-elevated rounded-2xl shadow-sm border border-border-subtle hover:border-brand-default/30 transition-all hover:shadow-md"
+                    >
                       <div className="flex items-start justify-between">
                         <div className="w-10 h-10 rounded-xl bg-status-warning-bg flex items-center justify-center flex-shrink-0">
                           <ClipboardList className="w-5 h-5 text-status-warning" />
