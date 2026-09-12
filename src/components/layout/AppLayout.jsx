@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 import LanguageSwitcher from '../ui/LanguageSwitcher'
@@ -67,8 +67,24 @@ export default function AppLayout({ children, role }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const { pathname } = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const searchQuery = searchParams.get('q') || ''
+
+  const handleSearchChange = (e) => {
+    const q = e.target.value
+    if (q) {
+      searchParams.set('q', q)
+    } else {
+      searchParams.delete('q')
+    }
+    setSearchParams(searchParams, { replace: true })
+  }
 
   const navItems = role === 'patient' ? NAV_PATIENT : role === 'doctor' ? NAV_DOCTOR : NAV_ADMIN
+
+  const isPatient = role === 'patient'
+  const isDoctorDashboard = role === 'doctor' && pathname === '/doctor'
+  const showSearch = !isPatient && !isDoctorDashboard
 
   const handleLogout = async () => {
     await logout()
@@ -160,13 +176,19 @@ export default function AppLayout({ children, role }) {
           </button>
 
           {/* Search */}
-          <div className="hidden sm:flex items-center gap-2 bg-canvas rounded-lg px-3 py-1.5 flex-1 max-w-xs border border-border-subtle">
-            <Search className="w-4 h-4 text-text-muted flex-shrink-0" />
-            <input
-              className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-muted focus:outline-none min-w-0"
-              placeholder="Search..."
-            />
-          </div>
+          {showSearch ? (
+            <div className="hidden sm:flex items-center gap-2 bg-canvas rounded-lg px-3 py-1.5 flex-1 max-w-xs border border-border-subtle">
+              <Search className="w-4 h-4 text-text-muted flex-shrink-0" />
+              <input
+                className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-muted focus:outline-none min-w-0"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+              />
+            </div>
+          ) : (
+            <div className="flex-1" />
+          )}
 
           <div className="ml-auto flex items-center gap-2">
             {/* Demo mode badge */}

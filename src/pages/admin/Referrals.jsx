@@ -7,6 +7,8 @@ import { Search, Filter, ArrowRight } from 'lucide-react'
 export default function Referrals() {
   const [referrals, setReferrals] = useState([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showSearch, setShowSearch] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -40,16 +42,35 @@ export default function Referrals() {
             <p className="text-muted text-sm">Monitor inter-facility patient transfers</p>
           </div>
           <div className="flex gap-2">
-            <button className="p-2 border border-border rounded-lg text-muted hover:bg-bg"><Search className="w-4 h-4" /></button>
+            <button 
+              onClick={() => { setShowSearch(!showSearch); setSearchQuery('') }}
+              className={`p-2 border rounded-lg transition-colors ${showSearch ? 'border-teal text-teal bg-teal-light/50' : 'border-border text-muted hover:bg-bg'}`}
+            >
+              <Search className="w-4 h-4" />
+            </button>
             <button className="p-2 border border-border rounded-lg text-muted hover:bg-bg"><Filter className="w-4 h-4" /></button>
           </div>
         </div>
+
+        {showSearch && (
+          <div className="relative animate-in fade-in slide-in-from-top-2 duration-200">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+            <input 
+              autoFocus
+              type="text" 
+              placeholder="Search referrals by patient name, code, facility, or department..." 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full bg-surface border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-teal transition-colors"
+            />
+          </div>
+        )}
 
         {loading ? (
           <div className="text-center py-12 text-muted">Loading...</div>
         ) : (
           <div className="space-y-3">
-            {referrals.map((ref, i) => (
+            {referrals.filter(ref => !searchQuery || ref.patient_name.toLowerCase().includes(searchQuery.toLowerCase()) || ref.patient_code.toLowerCase().includes(searchQuery.toLowerCase()) || ref.from_facility.toLowerCase().includes(searchQuery.toLowerCase()) || ref.to_facility.toLowerCase().includes(searchQuery.toLowerCase()) || ref.department.toLowerCase().includes(searchQuery.toLowerCase())).map((ref, i) => (
               <div key={i} className="bg-surface border border-border rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-4 hover:shadow-sm transition-shadow">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
@@ -78,9 +99,9 @@ export default function Referrals() {
               </div>
             ))}
             
-            {referrals.length === 0 && (
+            {referrals.filter(ref => !searchQuery || ref.patient_name.toLowerCase().includes(searchQuery.toLowerCase()) || ref.patient_code.toLowerCase().includes(searchQuery.toLowerCase()) || ref.from_facility.toLowerCase().includes(searchQuery.toLowerCase()) || ref.to_facility.toLowerCase().includes(searchQuery.toLowerCase()) || ref.department.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
               <div className="text-center py-12 border border-dashed border-border rounded-xl">
-                <p className="text-muted">No referrals found.</p>
+                <p className="text-muted">No referrals found matching your search.</p>
               </div>
             )}
           </div>

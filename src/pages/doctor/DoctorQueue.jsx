@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import AppLayout from '../../components/layout/AppLayout'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -317,6 +317,8 @@ export default function DoctorQueue() {
   const [activePatient, setActivePatient] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [actionLoadingId, setActionLoadingId] = useState(null)
+  const [searchParams] = useSearchParams()
+  const searchQuery = (searchParams.get('q') || '').toLowerCase()
 
   const fetchDoctorAndQueue = useCallback(async () => {
     if (!user?.id || demoMode) {
@@ -395,8 +397,8 @@ export default function DoctorQueue() {
         waiting_since: getWaitingTime(item.created_at, item.status),
         appointment: appt?.scheduled_at ? new Date(appt.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—',
       }
-    })
-  }, [queue, demoMode, user?.id])
+    }).filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery) || p.reason.toLowerCase().includes(searchQuery) || String(p.queue_no).includes(searchQuery))
+  }, [queue, demoMode, user?.id, searchQuery])
 
   const stats = useMemo(() => {
     const waiting = queuePatients.filter(p => p.queue_status === 'waiting' || p.queue_status === 'emergency').length
