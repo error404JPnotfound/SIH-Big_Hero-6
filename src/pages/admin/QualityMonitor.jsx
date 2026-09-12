@@ -1,21 +1,12 @@
 import AppLayout from '../../components/layout/AppLayout'
 import { ProgressBar } from '../../components/ui/Misc'
 import { Badge } from '../../components/ui/Badge'
+import { useState, useEffect } from 'react'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
-
-const METRICS = [
-  { label: 'Average Waiting Time', value: 28, unit: 'min', target: 30, status: 'good', trend: -8, desc: 'Below 30-min target ✓' },
-  { label: 'Referral Completion Rate', value: 78, unit: '%', target: 90, status: 'needs_improvement', trend: 5, desc: '12 pts below target' },
-  { label: 'Follow-up Completion', value: 65, unit: '%', target: 85, status: 'needs_improvement', trend: -2, desc: '20 pts below target' },
-  { label: 'Diagnostic Turnaround', value: 2.1, unit: 'days', target: 2, status: 'warning', trend: 0.3, desc: 'Slightly above target' },
-  { label: 'Medicine Availability', value: 84, unit: '%', target: 95, status: 'needs_improvement', trend: 3, desc: '7 shortages active' },
-  { label: 'Teleconsultation Success', value: 92, unit: '%', target: 90, status: 'good', trend: 4, desc: 'Above target ✓' },
-  { label: 'Patient Satisfaction', value: 4.2, unit: '/5', target: 4.5, status: 'warning', trend: 0.1, desc: '0.3 below target' },
-  { label: 'Facility Utilization', value: 72, unit: '%', target: 80, status: 'warning', trend: 6, desc: 'District Hospital at 85%' },
-]
+import { getQualityMonitorMetrics } from '../../lib/db'
 
 // Line-like sparkline using CSS
-function Sparkline({ data }) {
+function Sparkline({ data = [] }) {
   return (
     <div className="flex items-end gap-0.5 h-8 w-16">
       {data.map((v, i) => (
@@ -25,18 +16,24 @@ function Sparkline({ data }) {
   )
 }
 
-const SPARKLINES = {
-  0: [60,65,70,62,72,68,75],
-  1: [70,73,71,75,76,78,78],
-  2: [68,65,67,63,66,65,65],
-  3: [3,2.5,2.8,2.3,2.1,2.4,2.1],
-  4: [80,82,79,81,83,84,84],
-  5: [85,87,89,88,90,91,92],
-  6: [4,4.1,4.0,4.1,4.2,4.2,4.2],
-  7: [60,62,65,68,70,72,72],
-}
-
 export default function QualityMonitor() {
+  const [metrics, setMetrics] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await getQualityMonitorMetrics()
+        if (data) setMetrics(data)
+      } catch (err) {
+        console.error('Error loading quality metrics:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
   return (
     <AppLayout role="admin">
       <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
@@ -60,7 +57,7 @@ export default function QualityMonitor() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-5">
-          {METRICS.map((m, i) => {
+          {metrics.map((m, i) => {
             const isGood = m.status === 'good'
             const isBad = m.status === 'needs_improvement'
             const barColor = isGood ? 'success' : isBad ? 'critical' : 'warning'
@@ -83,7 +80,7 @@ export default function QualityMonitor() {
                 </div>
                 <ProgressBar value={typeof m.value === 'number' && m.unit === '%' ? m.value : (m.value / (m.target * 1.5)) * 100} max={100} color={barColor} label={`Target: ${m.target}${m.unit}`} />
                 <div className="mt-3 flex items-end justify-between">
-                  <Sparkline data={SPARKLINES[i]} />
+                  <Sparkline data={m.sparkline} />
                   <span className="text-xs text-muted">7-day trend</span>
                 </div>
               </div>

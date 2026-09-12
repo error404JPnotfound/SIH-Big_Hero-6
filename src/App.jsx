@@ -25,6 +25,10 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import Facilities from './pages/admin/Facilities'
 import HighRisk from './pages/admin/HighRisk'
 import QualityMonitor from './pages/admin/QualityMonitor'
+import Doctors from './pages/admin/Doctors'
+import Patients from './pages/admin/Patients'
+import ReferralsAdmin from './pages/admin/Referrals'
+import MedicineStock from './pages/admin/MedicineStock'
 
 export default function App() {
   return (
@@ -59,10 +63,10 @@ export default function App() {
           <Route path="/admin/facilities" element={<Facilities />} />
           <Route path="/admin/high-risk" element={<HighRisk />} />
           <Route path="/admin/quality" element={<QualityMonitor />} />
-          <Route path="/admin/doctors" element={<AdminDashboard />} />
-          <Route path="/admin/patients" element={<AdminDashboard />} />
-          <Route path="/admin/referrals" element={<AdminDashboard />} />
-          <Route path="/admin/medicines" element={<AdminDashboard />} />
+          <Route path="/admin/doctors" element={<Doctors />} />
+          <Route path="/admin/patients" element={<Patients />} />
+          <Route path="/admin/referrals" element={<ReferralsAdmin />} />
+          <Route path="/admin/medicines" element={<MedicineStock />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

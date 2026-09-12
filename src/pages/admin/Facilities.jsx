@@ -2,7 +2,8 @@ import AppLayout from '../../components/layout/AppLayout'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { ProgressBar } from '../../components/ui/Misc'
-import { MOCK_FACILITIES } from '../../lib/mockData'
+import { useState, useEffect } from 'react'
+import { getFacilities } from '../../lib/db'
 import { Building2, Users, Stethoscope, Bed, Wifi, Plus, MapPin } from 'lucide-react'
 
 const STATUS_META = {
@@ -65,13 +66,30 @@ function FacilityCard({ fac }) {
 }
 
 export default function Facilities() {
+  const [facilities, setFacilities] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await getFacilities()
+        if (data) setFacilities(data)
+      } catch (err) {
+        console.error('Error loading facilities:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
   return (
     <AppLayout role="admin">
       <div className="p-4 md:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-navy">Facility Management</h1>
-            <p className="text-muted text-sm">{MOCK_FACILITIES.length} facilities across Khandwa district</p>
+            <p className="text-muted text-sm">{facilities.length} facilities across Khandwa district</p>
           </div>
           <Button className="bg-teal text-white"><Plus className="w-4 h-4" /> Add Facility</Button>
         </div>
@@ -79,10 +97,10 @@ export default function Facilities() {
         {/* Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total Facilities', value: MOCK_FACILITIES.length, color: 'text-navy' },
-            { label: 'Operational', value: MOCK_FACILITIES.filter(f => f.status === 'operational').length, color: 'text-success' },
-            { label: 'Busy/Limited', value: MOCK_FACILITIES.filter(f => ['busy','limited_capacity'].includes(f.status)).length, color: 'text-warning' },
-            { label: 'Total Doctors', value: MOCK_FACILITIES.reduce((s, f) => s + f.doctors, 0), color: 'text-teal' },
+            { label: 'Total Facilities', value: facilities.length, color: 'text-navy' },
+            { label: 'Operational', value: facilities.filter(f => f.status === 'operational').length, color: 'text-success' },
+            { label: 'Busy/Limited', value: facilities.filter(f => ['busy','limited_capacity'].includes(f.status)).length, color: 'text-warning' },
+            { label: 'Total Doctors', value: facilities.reduce((s, f) => s + f.doctors, 0), color: 'text-teal' },
           ].map(s => (
             <div key={s.label} className="bg-surface rounded-xl border border-border p-4 text-center">
               <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
@@ -92,7 +110,7 @@ export default function Facilities() {
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {MOCK_FACILITIES.map(fac => <FacilityCard key={fac.id} fac={fac} />)}
+          {facilities.map(fac => <FacilityCard key={fac.id} fac={fac} />)}
         </div>
       </div>
     </AppLayout>

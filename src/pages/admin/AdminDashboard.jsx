@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import AppLayout from '../../components/layout/AppLayout'
@@ -5,9 +6,7 @@ import { KPICard } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { ProgressBar, Alert } from '../../components/ui/Misc'
-import {
-  MOCK_ADMIN_STATS, MOCK_FACILITIES, MOCK_HIGH_RISK
-} from '../../lib/mockData'
+import { getAdminDashboard, getFacilities, getHighRiskFollowUps, getQualityIndicators, getWeeklyConsultations } from '../../lib/db'
 import {
   Users, Stethoscope, Building2, Activity, ClipboardList, AlertCircle,
   Pill, Clock, TrendingUp, TrendingDown, ChevronRight
@@ -101,16 +100,61 @@ function BarChart({ data, title }) {
   )
 }
 
-const WEEKLY_DATA = [
-  { label: 'Mon', value: 82 }, { label: 'Tue', value: 95 }, { label: 'Wed', value: 118 },
-  { label: 'Thu', value: 103 }, { label: 'Fri', value: 127 }, { label: 'Sat', value: 88 }, { label: 'Sun', value: 71 },
-]
 
 export default function AdminDashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const name = user?.name || 'Admin'
-  const s = MOCK_ADMIN_STATS
+
+  const [stats, setStats] = useState({
+    total_patients: 0, active_doctors: 0, facilities: 0, today_consultations: 0,
+    pending_referrals: 0, high_risk_patients: 0, medicine_shortages: 0, diagnostic_delays: 0
+  })
+  const [facilities, setFacilities] = useState([])
+  const [highRisk, setHighRisk] = useState([])
+  const [qualityIndicators, setQualityIndicators] = useState([])
+  const [weeklyData, setWeeklyData] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [dbStats, dbFacilities, dbHighRisk, dbQuality, dbWeekly] = await Promise.all([
+          getAdminDashboard(),
+          getFacilities(),
+          getHighRiskFollowUps(),
+          getQualityIndicators().catch(() => null),
+          getWeeklyConsultations().catch(() => null)
+        ])
+
+        if (dbStats) setStats(dbStats)
+        if (dbFacilities && dbFacilities.length > 0) setFacilities(dbFacilities)
+        if (dbHighRisk && dbHighRisk.length > 0) {
+          const mappedHighRisk = dbHighRisk.map(hr => ({
+            id: hr.id,
+            name: hr.patients?.profiles?.full_name || hr.patients?.patient_code || 'Unknown',
+            age: hr.patients?.dob ? new Date().getFullYear() - new Date(hr.patients.dob).getFullYear() : 'N/A',
+            category: hr.category,
+            risk: hr.risk_level,
+            last_visit: hr.last_visit,
+            next_due: hr.next_due,
+            provider: hr.doctors?.profiles?.full_name || 'Unknown',
+            status: hr.status
+          }))
+          setHighRisk(mappedHighRisk)
+        }
+        if (dbQuality && dbQuality.length > 0) setQualityIndicators(dbQuality)
+        if (dbWeekly && dbWeekly.length > 0) setWeeklyData(dbWeekly)
+      } catch (err) {
+        console.error('Error loading admin data:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [])
+
+  const s = stats
 
   return (
     <AppLayout role="admin">
@@ -149,9 +193,9 @@ export default function AdminDashboard() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Chart */}
           <div className="lg:col-span-1 bg-surface rounded-xl border border-border p-5">
-            <BarChart data={WEEKLY_DATA} title="Weekly Consultations" />
+            <BarChart data={weeklyData} title="Weekly Consultations" />
             <div className="mt-4 flex justify-between text-xs text-muted">
-              <span>Total this week: <strong className="text-navy">684</strong></span>
+              <span>Total this week: <strong className="text-navy">{weeklyData.reduce((acc, curr) => acc + curr.value, 0)}</strong></span>
               <span className="text-success flex items-center gap-1"><TrendingUp className="w-3 h-3" />+12%</span>
             </div>
           </div>
@@ -163,13 +207,7 @@ export default function AdminDashboard() {
               <Button size="sm" variant="ghost" onClick={() => navigate('/admin/quality')}>View Full Dashboard</Button>
             </div>
             <div className="space-y-4">
-              {[
-                { label: 'Referral Completion Rate', value: 78, target: 90, color: 'warning' },
-                { label: 'Follow-up Completion Rate', value: 65, target: 85, color: 'critical' },
-                { label: 'Teleconsultation Success', value: 92, target: 90, color: 'success' },
-                { label: 'Medicine Availability', value: 84, target: 95, color: 'warning' },
-                { label: 'Avg. Waiting Time < 30 min', value: 71, target: 80, color: 'warning' },
-              ].map(m => (
+              {qualityIndicators.map(m => (
                 <div key={m.label}>
                   <div className="flex justify-between text-xs mb-1.5">
                     <span className="text-muted">{m.label}</span>
@@ -189,7 +227,7 @@ export default function AdminDashboard() {
               <h3 className="text-sm font-semibold text-navy">Facility Status</h3>
               <Button size="sm" variant="ghost" onClick={() => navigate('/admin/facilities')}>Manage</Button>
             </div>
-            {MOCK_FACILITIES.map(fac => <FacilityRow key={fac.id} fac={fac} />)}
+            {facilities.map(fac => <FacilityRow key={fac.id} fac={fac} />)}
           </div>
 
           {/* High risk patients */}
@@ -208,7 +246,7 @@ export default function AdminDashboard() {
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted">Status</th>
                 </tr></thead>
                 <tbody>
-                  {MOCK_HIGH_RISK.map(p => <HighRiskRow key={p.id} p={p} />)}
+                  {highRisk.map(p => <HighRiskRow key={p.id} p={p} />)}
                 </tbody>
               </table>
             </div>

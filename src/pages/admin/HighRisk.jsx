@@ -2,7 +2,8 @@ import AppLayout from '../../components/layout/AppLayout'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { ProgressBar } from '../../components/ui/Misc'
-import { MOCK_HIGH_RISK } from '../../lib/mockData'
+import { useState, useEffect } from 'react'
+import { getHighRiskFollowUps } from '../../lib/db'
 import { AlertCircle, Baby, Heart, Pill, Users, Filter } from 'lucide-react'
 
 const RISK_META = {
@@ -19,6 +20,36 @@ const STATUS_META = {
 const CATEGORIES = ['All', 'Maternal Health', 'Child Health', 'Diabetes', 'Hypertension', 'TB', 'Elderly Care']
 
 export default function HighRisk() {
+  const [highRisk, setHighRisk] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await getHighRiskFollowUps()
+        if (data) {
+          const mapped = data.map(hr => ({
+            id: hr.id,
+            name: hr.patients?.profiles?.full_name || hr.patients?.patient_code || 'Unknown',
+            age: hr.patients?.dob ? new Date().getFullYear() - new Date(hr.patients.dob).getFullYear() : 'N/A',
+            category: hr.category,
+            risk: hr.risk_level,
+            last_visit: hr.last_visit,
+            next_due: hr.next_due,
+            provider: hr.doctors?.profiles?.full_name || 'Unassigned',
+            status: hr.status
+          }))
+          setHighRisk(mapped)
+        }
+      } catch (err) {
+        console.error('Error loading high risk patients:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
   return (
     <AppLayout role="admin">
       <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
@@ -40,10 +71,10 @@ export default function HighRisk() {
         {/* Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Critical', value: 3, icon: AlertCircle, color: 'text-critical bg-critical-bg' },
-            { label: 'Overdue', value: 8, icon: AlertCircle, color: 'text-warning bg-warning-bg' },
-            { label: 'Due This Week', value: 15, icon: Heart, color: 'text-blue bg-blue-light' },
-            { label: 'Total Monitored', value: MOCK_HIGH_RISK.length, icon: Users, color: 'text-navy bg-navy/5' },
+            { label: 'Critical', value: highRisk.filter(p => p.risk === 'critical' || p.risk === 'high').length, icon: AlertCircle, color: 'text-critical bg-critical-bg' },
+            { label: 'Overdue', value: highRisk.filter(p => p.status === 'overdue').length, icon: AlertCircle, color: 'text-warning bg-warning-bg' },
+            { label: 'Due This Week', value: highRisk.filter(p => p.status === 'due_soon').length, icon: Heart, color: 'text-blue bg-blue-light' },
+            { label: 'Total Monitored', value: highRisk.length, icon: Users, color: 'text-navy bg-navy/5' },
           ].map(s => (
             <div key={s.label} className={`rounded-xl border border-border p-4 flex items-center gap-3 ${s.color.split(' ')[1]}`}>
               <s.icon className={`w-6 h-6 flex-shrink-0 ${s.color.split(' ')[0]}`} />
@@ -57,7 +88,7 @@ export default function HighRisk() {
 
         {/* Patient cards */}
         <div className="space-y-3">
-          {MOCK_HIGH_RISK.map(p => {
+          {highRisk.map(p => {
             const sm = STATUS_META[p.status]
             const rm = RISK_META[p.risk]
             return (

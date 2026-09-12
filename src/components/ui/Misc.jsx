@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { cn } from '../../lib/utils'
 
 export function StatusDot({ status }) {
@@ -45,7 +46,17 @@ export function Timeline({ items }) {
 }
 
 export function ProgressBar({ value, max = 100, color = 'teal', label, showLabel = true, className }) {
-  const pct = Math.min(100, (value / max) * 100)
+  const [currentValue, setCurrentValue] = useState(0)
+  
+  useEffect(() => {
+    // Small delay to allow the CSS transition to trigger after mount
+    const timer = setTimeout(() => {
+      setCurrentValue(value)
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [value])
+
+  const pct = Math.min(100, (currentValue / max) * 100)
   const colorMap = { teal: 'bg-teal', blue: 'bg-blue', success: 'bg-success', warning: 'bg-warning', critical: 'bg-critical' }
   return (
     <div className={cn('w-full', className)}>
@@ -57,7 +68,7 @@ export function ProgressBar({ value, max = 100, color = 'teal', label, showLabel
       )}
       <div className="h-2 bg-border rounded-full overflow-hidden">
         <div
-          className={cn('h-full rounded-full transition-all duration-500', colorMap[color])}
+          className={cn('h-full rounded-full transition-all duration-1000 ease-out', colorMap[color])}
           style={{ width: `${pct}%` }}
         />
       </div>

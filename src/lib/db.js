@@ -540,6 +540,57 @@ export async function getAdminDashboard() {
   return data
 }
 
+/** Get quality indicators for admin dashboard */
+export async function getQualityIndicators() {
+  const { data, error } = await supabase
+    .from('quality_indicators_view')
+    .select('*')
+  if (error) throw error
+  return data
+}
+
+/** Get rich quality monitor metrics */
+export async function getQualityMonitorMetrics() {
+  const { data, error } = await supabase
+    .from('quality_monitor_metrics_view')
+    .select('*')
+  if (error) throw error
+  return data
+}
+
+/** Get weekly consultations for admin dashboard */
+export async function getWeeklyConsultations() {
+  const { data, error } = await supabase
+    .from('weekly_consultations_view')
+    .select('*')
+  if (error) throw error
+  return data
+}
+
+export async function getAdminDoctors() {
+  const { data, error } = await supabase.from('admin_doctors_view').select('*')
+  if (error) throw error
+  return data
+}
+
+export async function getAdminPatients() {
+  const { data, error } = await supabase.from('admin_patients_view').select('*')
+  if (error) throw error
+  return data
+}
+
+export async function getAdminReferrals() {
+  const { data, error } = await supabase.from('admin_referrals_view').select('*')
+  if (error) throw error
+  return data
+}
+
+export async function getAdminMedicineStock() {
+  const { data, error } = await supabase.from('admin_medicines_view').select('*')
+  if (error) throw error
+  return data
+}
+
 // ──────────────────────────────────────────────────────────────
 // TRIAGE
 // ──────────────────────────────────────────────────────────────

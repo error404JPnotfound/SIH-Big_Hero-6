@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { cn } from '../../lib/utils'
 
 export function Card({ children, className, ...props }) {
@@ -23,6 +24,41 @@ export function CardBody({ children, className }) {
   return <div className={cn('p-6', className)}>{children}</div>
 }
 
+function AnimatedNumber({ value, duration = 2000 }) {
+  const [count, setCount] = useState(0)
+  
+  const isString = typeof value === 'string'
+  const numericValue = isString ? parseFloat(value.replace(/,/g, '')) : parseFloat(value)
+  
+  useEffect(() => {
+    if (isNaN(numericValue) || numericValue === 0) {
+      setCount(numericValue || value)
+      return
+    }
+    
+    let startTime = null
+    const easeOutQuart = (t) => 1 - Math.pow(1 - t, 4)
+    
+    const animate = (timestamp) => {
+      if (!startTime) startTime = timestamp
+      const progress = Math.min((timestamp - startTime) / duration, 1)
+      
+      setCount(Math.floor(numericValue * easeOutQuart(progress)))
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate)
+      } else {
+        setCount(numericValue)
+      }
+    }
+    const req = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(req)
+  }, [numericValue, duration, value])
+  
+  if (isNaN(numericValue)) return <>{value}</>
+  return <>{isString && typeof value === 'string' && value.includes(',') ? count.toLocaleString() : count}</>
+}
+
 export function KPICard({ title, value, subtitle, icon: Icon, trend, color = 'teal', onClick }) {
   const colors = {
     teal:     { bg: 'bg-teal-light', text: 'text-teal', icon: 'bg-teal/20' },
@@ -41,7 +77,9 @@ export function KPICard({ title, value, subtitle, icon: Icon, trend, color = 'te
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium text-muted uppercase tracking-wider mb-1">{title}</p>
-          <p className={cn('text-2xl font-bold', c.text)}>{value}</p>
+          <p className={cn('text-2xl font-bold', c.text)}>
+            <AnimatedNumber value={value} />
+          </p>
           {subtitle && <p className="text-xs text-muted mt-0.5">{subtitle}</p>}
         </div>
         {Icon && (
