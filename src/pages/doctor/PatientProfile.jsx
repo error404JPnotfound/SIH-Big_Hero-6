@@ -157,10 +157,25 @@ export default function PatientProfile() {
             <h1 className="text-xl font-bold text-text-primary">Patient Records</h1>
             {demoMode ? <p>Sign in with a Supabase doctor account to view patient records.</p> : patientId ? <p>Patient record unavailable.</p> : <>
               <p className="text-text-muted">Select a patient from your appointments.</p>
-              {patients.length === 0 && <p>No patients assigned to you yet.</p>}
-              {patients.map(p => <button key={p.id} className="block w-full text-left border border-border-subtle rounded-lg p-3 bg-canvas hover:bg-bg text-text-primary transition-colors" onClick={() => setSearchParams({ id: p.id })}>
-                {p.profiles?.full_name || 'Patient'} · {p.patient_code}
-              </button>)}
+              {patients.length === 0 && <p className="text-text-muted text-sm">No patients assigned to you yet.</p>}
+              <div className="space-y-3 mt-2">
+                {patients.map(p => (
+                  <div key={p.id} className="flex items-center justify-between gap-4 border border-border-subtle rounded-xl p-4 bg-canvas hover:bg-bg transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-brand-default flex items-center justify-center text-white font-bold text-base flex-shrink-0">
+                        {(p.profiles?.full_name || 'P')[0]}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-text-primary text-sm">{p.profiles?.full_name || 'Patient'}</p>
+                        <p className="text-xs text-text-muted">{p.patient_code}{p.dob ? ` · ${getAge(p.dob)} yrs` : ''}{p.gender ? ` · ${p.gender}` : ''}</p>
+                      </div>
+                    </div>
+                    <Button size="sm" className="bg-brand-default text-white hover:bg-brand-hover flex-shrink-0" onClick={() => setSearchParams({ id: p.id })}>
+                      View Patient
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </>}
             <Button variant="outline" onClick={() => patientId ? setSearchParams({}) : navigate('/doctor/queue')}>{patientId ? 'All Patients' : 'View Queue'}</Button>
           </div>
