@@ -589,26 +589,49 @@ export async function updateReferralStatus(referralId, status) {
  */
 export async function getMyDiagnostics() {
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return []
+  if (!session?.user) return []
 
   try {
-    // Resolve the patients.id for the logged-in user
-    const { data: patientRow, error: patientErr } = await supabase
+    // Robustly resolve the patient_id belonging to the authenticated user
+    let patientId = null
+    const { data: byProfile } = await supabase
       .from('patients')
       .select('id')
-      .single()
-    if (patientErr || !patientRow) return []
+      .eq('profile_id', session.user.id)
+      .maybeSingle()
+
+    if (byProfile?.id) {
+      patientId = byProfile.id
+    } else {
+      const { data: byId } = await supabase
+        .from('patients')
+        .select('id')
+        .eq('id', session.user.id)
+        .maybeSingle()
+      if (byId?.id) {
+        patientId = byId.id
+      } else {
+        const { data: singleRow } = await supabase
+          .from('patients')
+          .select('id')
+          .maybeSingle()
+        patientId = singleRow?.id
+      }
+    }
+
+    if (!patientId) return []
 
     const { data, error } = await supabase
       .from('diagnostics')
       .select(`
-        id, test_name, status, scheduled_at, result_notes, report_url, created_at,
+        id, test_name, status, scheduled_at, result_notes, report_url, created_at, updated_at,
         doctors:requested_by (
+          id, specialization,
           profiles:profile_id ( full_name )
         ),
-        facilities:facility_id ( name )
+        facilities:facility_id ( id, name, type, address )
       `)
-      .eq('patient_id', patientRow.id)
+      .eq('patient_id', patientId)
       .order('created_at', { ascending: false })
     if (error) {
       console.warn('[db] getMyDiagnostics warning:', error.message)
