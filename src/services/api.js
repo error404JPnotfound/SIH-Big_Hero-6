@@ -129,13 +129,16 @@ export const facilityService = {
    * Fetch curated facilities (from backend / Supabase / Mock)
    */
   getAll: async (params = {}) => {
-    try {
-      const response = await api.get('/facilities', { params });
-      if (response.data?.facilities) {
-        return response.data.facilities;
+    // Only query Express backend if VITE_API_URL is explicitly configured
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        const response = await api.get('/facilities', { params });
+        if (response.data?.facilities) {
+          return response.data.facilities;
+        }
+      } catch (err) {
+        // Backend not running or failed; fall back gracefully
       }
-    } catch (err) {
-      // Backend not running or failed; fall back gracefully
     }
 
     const {
@@ -261,21 +264,31 @@ export const facilityService = {
 
     let facilities = [];
 
-    // Try backend live endpoint first
-    try {
-      const response = await api.get('/facilities/live', { params: { lat: pLat, lng: pLng, radius } });
-      if (response.data?.facilities) {
-        facilities = response.data.facilities;
+    // Try backend live endpoint first if configured
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        const response = await api.get('/facilities/live', { params: { lat: pLat, lng: pLng, radius } });
+        if (response.data?.facilities) {
+          facilities = response.data.facilities;
+        }
+      } catch {
+        // Fall back to direct Overpass
       }
-    } catch {
-      // Backend not running; fallback to browser-direct Overpass API query
-      const raw = await fetchDirectOverpass(pLat, pLng, radius);
-      facilities = raw
-        .map(f => ({
-          ...f,
-          distanceKm: calculateDistanceKm(pLat, pLng, f.latitude, f.longitude)
-        }))
-        .sort((a, b) => a.distanceKm - b.distanceKm);
+    }
+
+    if (facilities.length === 0) {
+      // Direct Overpass API query
+      try {
+        const raw = await fetchDirectOverpass(pLat, pLng, radius);
+        facilities = raw
+          .map(f => ({
+            ...f,
+            distanceKm: calculateDistanceKm(pLat, pLng, f.latitude, f.longitude)
+          }))
+          .sort((a, b) => a.distanceKm - b.distanceKm);
+      } catch (e) {
+        console.warn('Overpass fetch failed:', e);
+      }
     }
 
     // Cache each returned OSM facility so details & booking pages can look them up
@@ -301,17 +314,19 @@ export const facilityService = {
       return { facility: fac, doctors: [] };
     }
 
-    // 2. Try backend
-    try {
-      const res = await api.get(`/facilities/${id}`);
-      if (res.data?.facility) {
-        return {
-          facility: res.data.facility,
-          doctors: res.data.doctors || []
-        };
+    // 2. Try backend if configured
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        const res = await api.get(`/facilities/${id}`);
+        if (res.data?.facility) {
+          return {
+            facility: res.data.facility,
+            doctors: res.data.doctors || []
+          };
+        }
+      } catch {
+        // Backend failed, fallback to local/supabase
       }
-    } catch {
-      // Backend failed, fallback to local/supabase
     }
 
     // 3. Try Supabase

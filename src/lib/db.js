@@ -63,6 +63,9 @@ export async function adminSetRole(userId, newRole) {
 
 /** Fetch my patient record */
 export async function getMyPatientRecord() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return null
+
   const { data, error } = await supabase
     .from('patients')
     .select(`
@@ -71,7 +74,10 @@ export async function getMyPatientRecord() {
       profiles:profile_id (full_name, phone, email)
     `)
     .single()
-  if (error) throw error
+  if (error) {
+    console.warn('[db] getMyPatientRecord warning:', error.message)
+    return null
+  }
   return data
 }
 
@@ -93,6 +99,9 @@ export async function updatePatientRecord(patientId, updates) {
 
 /** Get patient's own appointments (upcoming + past) */
 export async function getMyAppointments() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return []
+
   const { data, error } = await supabase
     .from('appointments')
     .select(`
@@ -105,8 +114,11 @@ export async function getMyAppointments() {
       queues (id, queue_number, position, status)
     `)
     .order('scheduled_at', { ascending: true })
-  if (error) throw error
-  return data
+  if (error) {
+    console.warn('[db] getMyAppointments warning:', error.message)
+    return []
+  }
+  return data || []
 }
 
 /** Doctor: get today's appointments for their facility */
@@ -137,9 +149,56 @@ export async function getDoctorTodayAppointments(doctorId) {
 /** Book an appointment using the DB function (returns queue number) */
 export async function bookAppointment({ doctorId, facilityId, scheduledAt, mode, reason }) {
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Please sign in to book an appointment.')
+
+  let resolvedDoctorId = doctorId
+
+  // If doctorId is missing or empty, resolve an appropriate active doctor
+  if (!resolvedDoctorId) {
+    // 1. Try to find an available doctor at this specific facility
+    if (facilityId) {
+      const { data: facDocs } = await supabase
+        .from('doctors')
+        .select('id')
+        .eq('facility_id', facilityId)
+        .eq('is_available', true)
+        .limit(1)
+      if (facDocs?.length) {
+        resolvedDoctorId = facDocs[0].id
+      }
+    }
+
+    // 2. If no facility doctor found, pick any available doctor from the system
+    if (!resolvedDoctorId) {
+      const { data: anyDocs } = await supabase
+        .from('doctors')
+        .select('id')
+        .eq('is_available', true)
+        .limit(1)
+      if (anyDocs?.length) {
+        resolvedDoctorId = anyDocs[0].id
+      }
+    }
+
+    // 3. Fallback to any doctor row in the database
+    if (!resolvedDoctorId) {
+      const { data: fallbackDocs } = await supabase
+        .from('doctors')
+        .select('id')
+        .limit(1)
+      if (fallbackDocs?.length) {
+        resolvedDoctorId = fallbackDocs[0].id
+      }
+    }
+  }
+
+  if (!resolvedDoctorId) {
+    throw new Error('No attending doctor is currently available to assign to this appointment.')
+  }
+
   const { data, error } = await supabase.rpc('book_appointment', {
     p_patient_profile_id: user.id,
-    p_doctor_id: doctorId,
+    p_doctor_id: resolvedDoctorId,
     p_facility_id: facilityId,
     p_scheduled_at: scheduledAt,
     p_mode: mode,
@@ -225,18 +284,29 @@ export function subscribeToQueue(facilityId, callback) {
 
 /** Get patient's vitals history */
 export async function getMyVitals(limit = 10) {
-  const patientResult = await supabase
-    .from('patients').select('id').single()
-  if (patientResult.error) throw patientResult.error
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return []
 
-  const { data, error } = await supabase
-    .from('vitals')
-    .select('*')
-    .eq('patient_id', patientResult.data.id)
-    .order('recorded_at', { ascending: false })
-    .limit(limit)
-  if (error) throw error
-  return data
+  try {
+    const patientResult = await supabase
+      .from('patients').select('id').single()
+    if (patientResult.error || !patientResult.data) return []
+
+    const { data, error } = await supabase
+      .from('vitals')
+      .select('*')
+      .eq('patient_id', patientResult.data.id)
+      .order('recorded_at', { ascending: false })
+      .limit(limit)
+    if (error) {
+      console.warn('[db] getMyVitals warning:', error.message)
+      return []
+    }
+    return data || []
+  } catch (err) {
+    console.warn('[db] getMyVitals exception:', err.message)
+    return []
+  }
 }
 
 /** Doctor: record vitals */
@@ -350,17 +420,138 @@ export async function createPrescription(patientId, consultationId, items) {
 
 /** Get my referrals (as patient) */
 export async function getMyReferrals() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return []
+
   const { data, error } = await supabase
     .from('referrals')
     .select(`
       id, department, reason, urgency, status, notes, created_at, updated_at,
-      from_facility:from_facility ( name ),
-      to_facility:to_facility     ( name ),
+      from_fac:from_facility ( name ),
+      to_fac:to_facility ( name ),
       referring_doctor:referring_doctor ( profiles:profile_id (full_name) )
     `)
     .order('created_at', { ascending: false })
+  if (error) {
+    console.warn('[db] getMyReferrals warning:', error.message)
+    return []
+  }
+  return data || []
+}
+
+/** Get patient's own follow-up schedule */
+export async function getMyFollowUps() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return []
+
+  try {
+    const { data: patientRow, error: patientErr } = await supabase
+      .from('patients').select('id').single()
+    if (patientErr || !patientRow) return []
+
+    const { data, error } = await supabase
+      .from('follow_ups')
+      .select('id, category, risk_level, last_visit, next_due, notes, status')
+      .eq('patient_id', patientRow.id)
+      .order('next_due', { ascending: true })
+    if (error) {
+      console.warn('[db] getMyFollowUps warning:', error.message)
+      return []
+    }
+    return data || []
+  } catch (err) {
+    console.warn('[db] getMyFollowUps exception:', err.message)
+    return []
+  }
+}
+
+/** Get patient's active queue entry for today */
+export async function getMyQueueEntry() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return null
+
+  try {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+
+    // Find today's appointments for this patient
+    const { data: appts, error: apptErr } = await supabase
+      .from('appointments')
+      .select(`
+        id, facility_id,
+        facilities:facility_id ( id, name )
+      `)
+      .in('status', ['scheduled','confirmed','in_progress'])
+      .gte('scheduled_at', today.toISOString())
+      .lt('scheduled_at', tomorrow.toISOString())
+      .order('scheduled_at', { ascending: true })
+      .limit(1)
+    if (apptErr || !appts || appts.length === 0) return null
+
+    const appt = appts[0]
+
+    // Find the queue entry for this appointment
+    const { data: queue, error: qErr } = await supabase
+      .from('queues')
+      .select('id, queue_number, position, status, facility_id')
+      .eq('appointment_id', appt.id)
+      .single()
+    if (qErr && qErr.code !== 'PGRST116') return null
+
+    return queue ? { ...queue, facility: appt.facilities, appointment_id: appt.id } : null
+  } catch (err) {
+    console.warn('[db] getMyQueueEntry exception:', err.message)
+    return null
+  }
+}
+
+/** Cancel an appointment (patient action) */
+export async function cancelAppointment(appointmentId) {
+  const { data, error } = await supabase
+    .from('appointments')
+    .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+    .eq('id', appointmentId)
+    .select()
+    .single()
   if (error) throw error
   return data
+}
+
+/** Get patient's consultation + diagnosis + prescription timeline for Records */
+export async function getMyConsultationTimeline() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return []
+
+  try {
+    const { data: patientRow, error: patientErr } = await supabase
+      .from('patients').select('id').single()
+    if (patientErr || !patientRow) return []
+
+    const { data, error } = await supabase
+      .from('consultations')
+      .select(`
+        id, chief_complaint, clinical_findings, assessment, plan,
+        started_at, created_at,
+        doctors:doctor_id ( profiles:profile_id (full_name) ),
+        facilities:facility_id ( name ),
+        diagnoses ( id, icd_code, description, is_chronic, created_at ),
+        prescriptions ( id, issued_at,
+          prescription_items ( medicine_name, dosage, frequency, duration )
+        )
+      `)
+      .eq('patient_id', patientRow.id)
+      .order('created_at', { ascending: false })
+    if (error) {
+      console.warn('[db] getMyConsultationTimeline warning:', error.message)
+      return []
+    }
+    return data || []
+  } catch (err) {
+    console.warn('[db] getMyConsultationTimeline exception:', err.message)
+    return []
+  }
 }
 
 /** Doctor: create a referral using the DB function */
@@ -390,18 +581,79 @@ export async function updateReferralStatus(referralId, status) {
 // DIAGNOSTICS
 // ──────────────────────────────────────────────────────────────
 
-/** Get patient's diagnostic tests */
+/**
+ * Get the current patient's diagnostic test requests.
+ * Resolves patient_id explicitly for belt-and-suspenders safety,
+ * joins doctor name via doctors → profiles and facility name.
+ * Ordered newest first. RLS also restricts rows to own patient.
+ */
 export async function getMyDiagnostics() {
-  const { data, error } = await supabase
-    .from('diagnostics')
-    .select(`
-      id, test_name, status, scheduled_at, result_notes, report_url, created_at,
-      facilities:facility_id (name),
-      requested_by:requested_by ( profiles:profile_id (full_name) )
-    `)
-    .order('created_at', { ascending: false })
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return []
+
+  try {
+    // Resolve the patients.id for the logged-in user
+    const { data: patientRow, error: patientErr } = await supabase
+      .from('patients')
+      .select('id')
+      .single()
+    if (patientErr || !patientRow) return []
+
+    const { data, error } = await supabase
+      .from('diagnostics')
+      .select(`
+        id, test_name, status, scheduled_at, result_notes, report_url, created_at,
+        doctors:requested_by (
+          profiles:profile_id ( full_name )
+        ),
+        facilities:facility_id ( name )
+      `)
+      .eq('patient_id', patientRow.id)
+      .order('created_at', { ascending: false })
+    if (error) {
+      console.warn('[db] getMyDiagnostics warning:', error.message)
+      return []
+    }
+    return data || []
+  } catch (err) {
+    console.warn('[db] getMyDiagnostics exception:', err.message)
+    return []
+  }
+}
+
+/**
+ * Generate a time-limited signed URL for a diagnostic report stored in Supabase Storage.
+ * @param {string} reportUrl - Full https URL or a Storage path e.g. "reports/uuid/file.pdf"
+ * @param {string} [bucket='reports'] - Storage bucket name
+ * @param {number} [expiresIn=3600] - Seconds until expiry
+ * @returns {Promise<string>} A usable URL for viewing or downloading the report
+ */
+export async function getDiagnosticSignedUrl(reportUrl, bucket = 'reports', expiresIn = 3600) {
+  if (!reportUrl) throw new Error('No report URL provided')
+
+  // If already a full HTTP URL, return it as-is
+  if (reportUrl.startsWith('http://') || reportUrl.startsWith('https://')) {
+    return reportUrl
+  }
+
+  // Otherwise it's a Supabase Storage path — create a signed URL
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(reportUrl, expiresIn)
   if (error) throw error
-  return data
+  return data.signedUrl
+}
+
+/** Subscribe to realtime diagnostic changes */
+export function subscribeToDiagnostics(callback) {
+  return supabase
+    .channel('realtime:diagnostics')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'diagnostics',
+    }, callback)
+    .subscribe()
 }
 
 /** Doctor: request a diagnostic test */
@@ -538,8 +790,27 @@ export async function getDoctorsByFacility(facilityId) {
     `)
     .eq('facility_id', facilityId)
     .eq('is_available', true)
-  if (error) throw error
-  return data
+  if (error) {
+    console.warn('[db] getDoctorsByFacility warning:', error.message)
+    return []
+  }
+  return data || []
+}
+
+/** Get all available active doctors (fallback for facilities without specific doctors) */
+export async function getAvailableDoctors() {
+  const { data, error } = await supabase
+    .from('doctors')
+    .select(`
+      id, specialization, is_available, facility_id,
+      profiles:profile_id (full_name, phone)
+    `)
+    .eq('is_available', true)
+  if (error) {
+    console.warn('[db] getAvailableDoctors warning:', error.message)
+    return []
+  }
+  return data || []
 }
 
 // ──────────────────────────────────────────────────────────────

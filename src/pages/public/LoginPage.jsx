@@ -108,16 +108,16 @@ export default function LoginPage() {
 
   // ── Demo mode ─────────────────────────────────────────────────
   const handleDemo = async () => {
-    if (selectedRole === 'doctor') {
-      setTab('email')
-      setEmail('diyathakrar68@gmail.com')
-      setError('Doctor demo data is stored in Supabase. Please sign in with the seeded doctor email instead of Demo Mode.')
-      return
-    }
     setLoading(true)
-    await new Promise(r => setTimeout(r, 500))
-    await loginDemo(selectedRole)
-    navigate(`/${selectedRole}`)
+    try {
+      await loginDemo(selectedRole)
+      navigate(`/${selectedRole}`)
+    } catch (err) {
+      console.warn('Demo login error:', err)
+      navigate(`/${selectedRole}`)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const currentRole = ROLES.find(r => r.id === selectedRole)
@@ -290,18 +290,18 @@ export default function LoginPage() {
               {/* Demo shortcut */}
               <div className="mt-5 p-5 bg-surface-elevated shadow-sm rounded-xl border border-border-subtle hover:border-brand-default/40 transition-colors">
                 <p className="text-sm font-bold text-text-primary mb-1 flex items-center gap-1.5">
-                  ✨ Demo Mode
+                  ✨ Instant Live Demo
                 </p>
                 <p className="text-xs text-text-muted mb-4 leading-relaxed">
                   {selectedRole === 'doctor'
-                    ? 'Doctor sample data is stored in Supabase, so use the seeded doctor email login to view live appointments and queues.'
-                    : `Explore the ${currentRole.label} portal instantly with realistic sample data. No login needed.`}
+                    ? 'Explore the Doctor portal with live Supabase data (Dr. Diya Thakrar — seeded appointments, queues & prescriptions).'
+                    : 'Explore the Patient portal with live Supabase data (Aarav Demo — real appointments, referrals, vitals & diagnostics).'}
                 </p>
                 <Button
                   variant="outline" size="sm" className="w-full border-brand-default/20 bg-subtle/30 text-brand-default hover:bg-brand-hover hover:text-white shadow-none"
                   onClick={handleDemo} loading={loading}
                 >
-                  {selectedRole === 'doctor' ? 'Use Doctor Email Login' : `Enter Demo Mode as ${currentRole.label}`}
+                  Enter Demo as {currentRole.label}
                 </Button>
               </div>
             </>

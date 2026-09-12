@@ -51,29 +51,82 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    // 1. Check demo session
-    const demoUser = sessionStorage.getItem('demo_user')
-    if (demoUser) {
-      setUser(JSON.parse(demoUser))
-      setDemoMode(true)
-      setLoading(false)
-      return
+    let isMounted = true
+
+    async function initAuth() {
+      // 1. Check real Supabase session first
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          await hydrateUser(session.user)
+          if (sessionStorage.getItem('demo_user')) {
+            setDemoMode(true)
+          }
+          if (isMounted) setLoading(false)
+          return
+        }
+      } catch (err) {
+        console.warn('Failed to retrieve session:', err)
+      }
+
+      // 2. If no active session, check if demo_user was saved
+      const savedDemo = sessionStorage.getItem('demo_user')
+      if (savedDemo) {
+        try {
+          const parsed = JSON.parse(savedDemo)
+          // If demo was patient or doctor, sign in to Supabase demo account so live queries succeed
+          if (parsed.role === 'patient') {
+            const { data } = await supabase.auth.signInWithPassword({
+              email: 'patient1.demo@careconnect.example',
+              password: 'Password123!',
+            })
+            if (data?.user) {
+              await hydrateUser(data.user)
+              setDemoMode(true)
+              if (isMounted) setLoading(false)
+              return
+            }
+          } else if (parsed.role === 'doctor') {
+            const { data } = await supabase.auth.signInWithPassword({
+              email: 'diyathakrar68@gmail.com',
+              password: 'Password123!',
+            })
+            if (data?.user) {
+              await hydrateUser(data.user)
+              setDemoMode(true)
+              if (isMounted) setLoading(false)
+              return
+            }
+          }
+          setUser(parsed)
+          setDemoMode(true)
+        } catch {
+          sessionStorage.removeItem('demo_user')
+        }
+      }
+
+      if (isMounted) setLoading(false)
     }
 
-    // 2. Check real Supabase session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      hydrateUser(session?.user ?? null).finally(() => setLoading(false))
-    }).catch(() => setLoading(false))
+    initAuth()
 
     // 3. Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        await hydrateUser(session?.user ?? null)
-        setLoading(false)
+        if (session?.user) {
+          await hydrateUser(session.user)
+        } else if (!sessionStorage.getItem('demo_user')) {
+          setUser(null)
+          setDemoMode(false)
+        }
+        if (isMounted) setLoading(false)
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      isMounted = false
+      subscription?.unsubscribe()
+    }
   }, [])
 
   // ── Sign in with Email & Password ─────────────────────────────
@@ -117,12 +170,59 @@ export function AuthProvider({ children }) {
     return data
   }
 
-  // ── Demo mode login (no Supabase required) ────────────────────
+  // ── Demo mode login ───────────────────────────────────────────
   const loginDemo = async (role) => {
+    setLoading(true)
+    if (role === 'patient') {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: 'patient1.demo@careconnect.example',
+          password: 'Password123!',
+        })
+        if (!error && data?.user) {
+          sessionStorage.setItem('demo_user', JSON.stringify({
+            id: data.user.id,
+            role: 'patient',
+            name: 'Aarav Demo',
+            email: 'patient1.demo@careconnect.example',
+          }))
+          setDemoMode(true)
+          await hydrateUser(data.user)
+          setLoading(false)
+          return data.user
+        }
+      } catch (err) {
+        console.warn('Demo patient login error:', err)
+      }
+    } else if (role === 'doctor') {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: 'diyathakrar68@gmail.com',
+          password: 'Password123!',
+        })
+        if (!error && data?.user) {
+          sessionStorage.setItem('demo_user', JSON.stringify({
+            id: data.user.id,
+            role: 'doctor',
+            name: 'Dr. Diya Thakrar',
+            email: 'diyathakrar68@gmail.com',
+          }))
+          setDemoMode(true)
+          await hydrateUser(data.user)
+          setLoading(false)
+          return data.user
+        }
+      } catch (err) {
+        console.warn('Doctor demo login error:', err)
+      }
+    }
+
+    // Fallback if network fails
     const u = DEMO_USERS[role]
     sessionStorage.setItem('demo_user', JSON.stringify(u))
     setUser(u)
     setDemoMode(true)
+    setLoading(false)
     return u
   }
 
@@ -131,7 +231,9 @@ export function AuthProvider({ children }) {
     sessionStorage.removeItem('demo_user')
     setDemoMode(false)
     setUser(null)
-    if (!demoMode) await supabase.auth.signOut()
+    try {
+      await supabase.auth.signOut()
+    } catch {}
   }
 
   // ── Convenience role checks ───────────────────────────────────
