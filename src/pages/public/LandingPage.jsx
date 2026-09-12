@@ -32,14 +32,7 @@ function Hero() {
             <p className="text-lg text-surface/70 mb-8 max-w-xl mx-auto lg:mx-0">
               Connect with healthcare professionals, manage appointments, track referrals and keep your health journey connected — from local health centres to specialists.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
-              <Button size="xl" className="bg-brand-default hover:bg-brand-hover/90 text-white" onClick={() => navigate('/register')}>
-                Get Care Now <ArrowRight className="w-5 h-5" />
-              </Button>
-              <Button size="xl" variant="outline" className="border-surface/20 text-surface hover:bg-surface/10 hover:text-surface" onClick={() => document.getElementById('services').scrollIntoView({ behavior: 'smooth' })}>
-                Explore Services
-              </Button>
-            </div>
+
           </div>
 
           {/* Right — connected network visualization */}
@@ -79,55 +72,12 @@ function Hero() {
           </div>
         </div>
 
-        {/* Stats bar */}
-        <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6 border-t border-surface/10 pt-10">
-          {[
-            { value: '12,847+', label: 'Patients Served' },
-            { value: '47', label: 'Active Doctors' },
-            { value: '12', label: 'Facilities' },
-            { value: '95%', label: 'Referral Rate' },
-          ].map(stat => (
-            <div key={stat.label} className="text-center">
-              <div className="text-3xl font-bold text-brand-default">{stat.value}</div>
-              <div className="text-sm text-surface/50 mt-1">{stat.label}</div>
-            </div>
-          ))}
-        </div>
+
       </div>
     </section>
   )
 }
 
-function Problem() {
-  return (
-    <section id="problem" className="py-20 bg-canvas">
-      <div className="container mx-auto px-4 max-w-6xl">
-        <div className="text-center mb-14">
-          <h2 className="text-3xl font-bold text-text-primary mb-4">Bridging the Rural Healthcare Gap</h2>
-          <p className="text-text-muted max-w-2xl mx-auto">
-            Rural and underserved communities face unique barriers to quality healthcare. CareConnect systematically addresses each one.
-          </p>
-        </div>
-        <div className="grid md:grid-cols-3 gap-6">
-          {[
-            { icon: MapPin, title: 'Distance & Travel', desc: 'Patients travel hours for basic consultations. CareConnect brings the doctor to the patient through assisted teleconsultation.', color: 'text-status-critical' },
-            { icon: FileText, title: 'Fragmented Records', desc: 'Medical history scattered across paper registers. Our longitudinal digital records follow you from Sub-Centre to Specialist.', color: 'text-status-warning' },
-            { icon: Clock, title: 'Long Waiting Times', desc: 'Digital queue management reduces uncertainty and helps patients plan their day rather than waiting blindly.', color: 'text-brand-secondary' },
-            { icon: ClipboardList, title: 'Lost Referrals', desc: 'Referral slips get lost or delayed. Every referral is tracked in real-time from creation to specialist appointment.', color: 'text-status-critical' },
-            { icon: Pill, title: 'Medicine Uncertainty', desc: 'Patients travel only to find medicine unavailable. Real-time medicine availability across facilities saves unnecessary trips.', color: 'text-status-warning' },
-            { icon: AlertCircle, title: 'Poor Follow-up', desc: 'High-risk patients — maternal, diabetic, TB — often miss follow-ups. Automated alerts ensure no one falls through the cracks.', color: 'text-status-success' },
-          ].map(item => (
-            <div key={item.title} className="bg-surface-elevated rounded-xl border border-border-subtle p-6 hover:shadow-md transition-shadow">
-              <item.icon className={`w-10 h-10 ${item.color} mb-4`} />
-              <h3 className="text-base font-bold text-text-primary mb-2">{item.title}</h3>
-              <p className="text-sm text-text-muted leading-relaxed">{item.desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
 
 function HowItWorks() {
   const steps = [
@@ -202,54 +152,6 @@ function Services() {
   )
 }
 
-function Trust() {
-  return (
-    <section className="py-20 bg-surface-elevated">
-      <div className="container mx-auto px-4 max-w-6xl">
-        <div className="text-center mb-14">
-          <h2 className="text-3xl font-bold text-text-primary mb-4">Built on Trust & Security</h2>
-        </div>
-        <div className="grid md:grid-cols-3 gap-6">
-          {[
-            { icon: Shield, title: 'RBAC & Encryption', desc: 'Row-level security ensures patients see only their own records. All data encrypted in transit and at rest.', color: 'text-brand-default' },
-            { icon: Globe, title: 'Multilingual', desc: 'Full support for English, Hindi, and Gujarati so no patient is left behind due to language barriers.', color: 'text-brand-secondary' },
-            { icon: Wifi, title: 'Low Connectivity Mode', desc: 'Offline-first PWA: enter data, queue appointments, and save notes without internet. Sync when connected.', color: 'text-status-success' },
-          ].map(item => (
-            <div key={item.title} className="flex gap-4 p-6 bg-canvas rounded-xl border border-border-subtle">
-              <item.icon className={`w-8 h-8 flex-shrink-0 mt-1 ${item.color}`} />
-              <div>
-                <h3 className="font-semibold text-text-primary mb-1">{item.title}</h3>
-                <p className="text-sm text-text-muted leading-relaxed">{item.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function CTA() {
-  const navigate = useNavigate()
-  return (
-    <section className="py-24 bg-subtle border-y border-border-subtle">
-      <div className="container mx-auto px-4 max-w-3xl text-center">
-        <h2 className="text-3xl md:text-4xl font-bold text-text-primary mb-4">Ready to Connect to Better Care?</h2>
-        <p className="text-text-muted mb-8 text-lg">
-          Join thousands of patients and healthcare workers using CareConnect to strengthen community health.
-        </p>
-        <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <Button size="xl" className="w-full sm:w-auto bg-brand-default hover:bg-brand-hover text-white shadow-sm" onClick={() => navigate('/login')}>
-            Get Started — It's Free
-          </Button>
-          <Button size="xl" variant="outline" className="w-full sm:w-auto border-border-subtle text-text-primary hover:bg-canvas bg-surface-elevated shadow-sm" onClick={() => navigate('/login?tab=doctor')}>
-            I'm a Healthcare Provider
-          </Button>
-        </div>
-      </div>
-    </section>
-  )
-}
 
 function Footer() {
   return (
@@ -265,17 +167,32 @@ function Footer() {
               Strengthening public health systems through connected technology.
             </p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-8 text-sm">
+          <div className="grid grid-cols-2 gap-8 text-sm">
             {[
-              { title: 'Platform', links: ['Patient Portal', 'Doctor Portal', 'Admin Portal', 'Teleconsultation'] },
-              { title: 'Services', links: ['Appointments', 'Referrals', 'Diagnostics', 'Medicine Search'] },
-              { title: 'Trust', links: ['Privacy Policy', 'Security', 'Accessibility', 'Contact'] },
+              {
+                title: 'Platform',
+                links: [
+                  { label: 'Patient Portal', to: '/login?role=patient' },
+                  { label: 'Doctor Portal', to: '/login?role=doctor' },
+                  { label: 'Admin Portal', to: '/login?role=admin' },
+                  { label: 'Teleconsultation', to: '/login?role=patient' },
+                ],
+              },
+              {
+                title: 'Services',
+                links: [
+                  { label: 'Appointments', to: '/login?role=patient' },
+                  { label: 'Referrals', to: '/login?role=patient' },
+                  { label: 'Diagnostics', to: '/login?role=patient' },
+                  { label: 'Medicine Search', to: '/login?role=patient' },
+                ],
+              },
             ].map(col => (
               <div key={col.title}>
                 <h4 className="text-surface/80 font-semibold mb-3">{col.title}</h4>
                 <ul className="space-y-2">
                   {col.links.map(l => (
-                    <li key={l}><a href="#" className="text-surface/40 hover:text-surface/70 transition-colors">{l}</a></li>
+                    <li key={l.label}><Link to={l.to} className="text-surface/40 hover:text-surface/70 transition-colors">{l.label}</Link></li>
                   ))}
                 </ul>
               </div>
@@ -309,7 +226,7 @@ export default function LandingPage() {
             CareConnect
           </div>
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-surface/60">
-            <a href="#problem" className="hover:text-surface transition-colors">Problem</a>
+
             <a href="#how-it-works" className="hover:text-surface transition-colors">How it Works</a>
             <a href="#services" className="hover:text-surface transition-colors">Services</a>
           </nav>
@@ -323,11 +240,10 @@ export default function LandingPage() {
 
       <main className="flex-1">
         <Hero />
-        <Problem />
+
         <HowItWorks />
         <Services />
-        <Trust />
-        <CTA />
+
       </main>
 
       <Footer />

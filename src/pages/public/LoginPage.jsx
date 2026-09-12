@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
@@ -14,11 +14,22 @@ const ROLES = [
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { signInWithEmail, signInWithPhone, verifyOtp, loginDemo } = useAuth()
 
   const [step, setStep]               = useState('role')     // role | login | otp
   const [tab, setTab]                 = useState('phone')    // phone | email
   const [selectedRole, setSelectedRole] = useState(null)
+
+  // Auto-select role from URL query param (e.g. /login?role=patient)
+  useEffect(() => {
+    const roleParam = searchParams.get('role')
+    const validRole = ROLES.find(r => r.id === roleParam)
+    if (validRole) {
+      setSelectedRole(validRole.id)
+      setStep('login')
+    }
+  }, [searchParams])
 
   // Form fields
   const [phone, setPhone]       = useState('')
@@ -108,16 +119,16 @@ export default function LoginPage() {
 
   // ── Demo mode ─────────────────────────────────────────────────
   const handleDemo = async () => {
-    if (selectedRole === 'doctor') {
-      setTab('email')
-      setEmail('diyathakrar68@gmail.com')
-      setError('Doctor demo data is stored in Supabase. Please sign in with the seeded doctor email instead of Demo Mode.')
-      return
-    }
     setLoading(true)
-    await new Promise(r => setTimeout(r, 500))
-    await loginDemo(selectedRole)
-    navigate(`/${selectedRole}`)
+    try {
+      await loginDemo(selectedRole)
+      navigate(`/${selectedRole}`)
+    } catch (err) {
+      console.warn('Demo login error:', err)
+      navigate(`/${selectedRole}`)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const currentRole = ROLES.find(r => r.id === selectedRole)
@@ -167,14 +178,18 @@ export default function LoginPage() {
           </div>
 
           {/* Back button */}
-          {step !== 'role' && (
-            <button
-              onClick={() => { setStep(step === 'otp' ? 'login' : 'role'); clearFeedback(); setOtp(['','','','','','']) }}
-              className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text mb-6 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" /> Back
-            </button>
-          )}
+          <button
+            onClick={() => {
+              if (step === 'otp') { setStep('login'); clearFeedback(); setOtp(['','','','','','']) }
+              else if (step === 'login' && searchParams.get('role')) { navigate('/') }
+              else if (step === 'login') { setStep('role'); clearFeedback() }
+              else { navigate('/') }
+            }}
+            className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text mb-6 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+
 
           {/* ── STEP 1: Role Selection ── */}
           {step === 'role' && (
@@ -290,18 +305,18 @@ export default function LoginPage() {
               {/* Demo shortcut */}
               <div className="mt-5 p-5 bg-surface-elevated shadow-sm rounded-xl border border-border-subtle hover:border-brand-default/40 transition-colors">
                 <p className="text-sm font-bold text-text-primary mb-1 flex items-center gap-1.5">
-                  ✨ Demo Mode
+                  ✨ Instant Live Demo
                 </p>
                 <p className="text-xs text-text-muted mb-4 leading-relaxed">
                   {selectedRole === 'doctor'
-                    ? 'Doctor sample data is stored in Supabase, so use the seeded doctor email login to view live appointments and queues.'
-                    : `Explore the ${currentRole.label} portal instantly with realistic sample data. No login needed.`}
+                    ? 'Explore the Doctor portal with live Supabase data (Dr. Diya Thakrar — seeded appointments, queues & prescriptions).'
+                    : 'Explore the Patient portal with live Supabase data (Aarav Demo — real appointments, referrals, vitals & diagnostics).'}
                 </p>
                 <Button
                   variant="outline" size="sm" className="w-full border-brand-default/20 bg-subtle/30 text-brand-default hover:bg-brand-hover hover:text-white shadow-none"
                   onClick={handleDemo} loading={loading}
                 >
-                  {selectedRole === 'doctor' ? 'Use Doctor Email Login' : `Enter Demo Mode as ${currentRole.label}`}
+                  Enter Demo as {currentRole.label}
                 </Button>
               </div>
             </>

@@ -8,7 +8,14 @@
 
 import axios from 'axios';
 import { MOCK_FACILITIES, MOCK_DOCTORS_BY_FACILITY, MOCK_APPOINTMENTS } from '../lib/mockData';
-import { getFacilities as getDbFacilities, getFacilityById as getDbFacilityById, getDoctorsByFacility as getDbDoctors } from '../lib/db';
+import { 
+  getFacilities as getDbFacilities, 
+  getFacilityById as getDbFacilityById, 
+  getDoctorsByFacility as getDbDoctors,
+  getMyAppointments as getDbAppointments,
+  bookAppointment as dbBookAppointment,
+  cancelAppointment as dbCancelAppointment
+} from '../lib/db';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { DB_TO_DISPLAY_TYPE, DISPLAY_TO_DB_TYPE } from '../lib/facilityTypes';
 
@@ -129,13 +136,16 @@ export const facilityService = {
    * Fetch curated facilities (from backend / Supabase / Mock)
    */
   getAll: async (params = {}) => {
-    try {
-      const response = await api.get('/facilities', { params });
-      if (response.data?.facilities) {
-        return response.data.facilities;
+    // Only query Express backend if VITE_API_URL is explicitly configured
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        const response = await api.get('/facilities', { params });
+        if (response.data?.facilities) {
+          return response.data.facilities;
+        }
+      } catch (err) {
+        // Backend not running or failed; fall back gracefully
       }
-    } catch (err) {
-      // Backend not running or failed; fall back gracefully
     }
 
     const {
@@ -261,21 +271,31 @@ export const facilityService = {
 
     let facilities = [];
 
-    // Try backend live endpoint first
-    try {
-      const response = await api.get('/facilities/live', { params: { lat: pLat, lng: pLng, radius } });
-      if (response.data?.facilities) {
-        facilities = response.data.facilities;
+    // Try backend live endpoint first if configured
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        const response = await api.get('/facilities/live', { params: { lat: pLat, lng: pLng, radius } });
+        if (response.data?.facilities) {
+          facilities = response.data.facilities;
+        }
+      } catch {
+        // Fall back to direct Overpass
       }
-    } catch {
-      // Backend not running; fallback to browser-direct Overpass API query
-      const raw = await fetchDirectOverpass(pLat, pLng, radius);
-      facilities = raw
-        .map(f => ({
-          ...f,
-          distanceKm: calculateDistanceKm(pLat, pLng, f.latitude, f.longitude)
-        }))
-        .sort((a, b) => a.distanceKm - b.distanceKm);
+    }
+
+    if (facilities.length === 0) {
+      // Direct Overpass API query
+      try {
+        const raw = await fetchDirectOverpass(pLat, pLng, radius);
+        facilities = raw
+          .map(f => ({
+            ...f,
+            distanceKm: calculateDistanceKm(pLat, pLng, f.latitude, f.longitude)
+          }))
+          .sort((a, b) => a.distanceKm - b.distanceKm);
+      } catch (e) {
+        console.warn('Overpass fetch failed:', e);
+      }
     }
 
     // Cache each returned OSM facility so details & booking pages can look them up
@@ -301,17 +321,19 @@ export const facilityService = {
       return { facility: fac, doctors: [] };
     }
 
-    // 2. Try backend
-    try {
-      const res = await api.get(`/facilities/${id}`);
-      if (res.data?.facility) {
-        return {
-          facility: res.data.facility,
-          doctors: res.data.doctors || []
-        };
+    // 2. Try backend if configured
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        const res = await api.get(`/facilities/${id}`);
+        if (res.data?.facility) {
+          return {
+            facility: res.data.facility,
+            doctors: res.data.doctors || []
+          };
+        }
+      } catch {
+        // Backend failed, fallback to local/supabase
       }
-    } catch {
-      // Backend failed, fallback to local/supabase
     }
 
     // 3. Try Supabase
@@ -370,18 +392,103 @@ function saveStoredAppointments(appts) {
 // ── Appointment Service ──────────────────────────────────────────
 export const appointmentService = {
   getAll: async () => {
-    try {
-      const res = await api.get('/appointments');
-      if (res.data?.appointments) {
-        return res.data.appointments;
+    // 1. Try Supabase first
+    if (isSupabaseConfigured()) {
+      try {
+        const dbAppts = await getDbAppointments();
+        if (dbAppts && dbAppts.length > 0) {
+          return dbAppts.map(a => {
+            const dt = a.scheduled_at ? new Date(a.scheduled_at) : null;
+            return {
+              ...a,
+              _id: a.id,
+              date: dt ? dt.toISOString().split('T')[0] : '',
+              time: dt ? dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+              timeSlot: dt ? dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+              doctor: a.doctors?.profiles?.full_name || (a.doctors?.specialization ? `Dr. (${a.doctors.specialization})` : 'Attending Physician'),
+              doctorId: a.doctors?.id,
+              facility: a.facilities?.name || 'CareConnect Facility',
+              facilityId: a.facilities?.id,
+              type: 'OPD Consultation',
+              consultationType: a.mode || 'in-person',
+              mode: a.mode || 'in-person',
+              symptoms: a.reason || '',
+              queueNo: a.queues?.[0]?.queue_number || 'A-01',
+              queue_no: a.queues?.[0]?.queue_number || 'A-01',
+            };
+          });
+        }
+      } catch (e) {
+        console.warn('Supabase getAppointments failed, falling back:', e);
       }
-    } catch {
-      // Fallback to stored/mock appointments
+    }
+
+    // 2. Try Express backend if configured
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        const res = await api.get('/appointments');
+        if (res.data?.appointments) {
+          return res.data.appointments;
+        }
+      } catch {
+        // Fallback to stored/mock appointments
+      }
     }
     return getStoredAppointments();
   },
 
   book: async (appointmentData) => {
+    // 1. Try Supabase first
+    if (isSupabaseConfigured()) {
+      try {
+        let scheduledAt = new Date().toISOString();
+        if (appointmentData.date && appointmentData.timeSlot) {
+          scheduledAt = new Date(`${appointmentData.date}T${appointmentData.timeSlot}:00`).toISOString();
+        } else if (appointmentData.date) {
+          scheduledAt = new Date(`${appointmentData.date}T09:00:00`).toISOString();
+        }
+
+        const res = await dbBookAppointment({
+          facilityId: appointmentData.facilityId,
+          doctorId: appointmentData.doctorId,
+          scheduledAt,
+          mode: appointmentData.consultationType || 'in-person',
+          reason: appointmentData.symptoms || 'General Consultation',
+        });
+
+        const queueNo = res?.queue_number || `A-0${Math.floor(Math.random() * 50) + 1}`;
+        const newAppt = {
+          id: res?.appointment_id || `a-${Date.now()}`,
+          _id: res?.appointment_id || `a-${Date.now()}`,
+          date: appointmentData.date,
+          time: appointmentData.timeSlot,
+          timeSlot: appointmentData.timeSlot,
+          doctor: appointmentData.doctorName || 'Attending Physician',
+          doctorId: appointmentData.doctorId,
+          facility: appointmentData.facilityName || 'CareConnect Facility',
+          facilityId: appointmentData.facilityId,
+          type: 'OPD Consultation',
+          consultationType: appointmentData.consultationType || 'in-person',
+          mode: appointmentData.consultationType || 'in-person',
+          symptoms: appointmentData.symptoms || '',
+          referralId: appointmentData.referralId || null,
+          referralDept: appointmentData.referralDept || null,
+          isReferral: !!appointmentData.referralId,
+          status: 'confirmed',
+          queueNo,
+          queue_no: queueNo,
+          createdAt: new Date().toISOString()
+        };
+
+        const current = getStoredAppointments();
+        saveStoredAppointments([newAppt, ...current]);
+        return newAppt;
+      } catch (err) {
+        console.warn('Supabase bookAppointment error, using fallback:', err);
+      }
+    }
+
+    // 2. Try Express backend
     try {
       const res = await api.post('/appointments', appointmentData);
       if (res.data?.appointment) {
@@ -409,6 +516,9 @@ export const appointmentService = {
       consultationType: appointmentData.consultationType || 'in-person',
       mode: appointmentData.consultationType || 'in-person',
       symptoms: appointmentData.symptoms || '',
+      referralId: appointmentData.referralId || null,
+      referralDept: appointmentData.referralDept || null,
+      isReferral: !!appointmentData.referralId,
       status: 'confirmed',
       queueNo,
       queue_no: queueNo,
@@ -420,6 +530,14 @@ export const appointmentService = {
   },
 
   cancel: async (id) => {
+    if (isSupabaseConfigured()) {
+      try {
+        await dbCancelAppointment(id);
+      } catch (e) {
+        console.warn('Supabase cancelAppointment failed:', e);
+      }
+    }
+
     try {
       const res = await api.patch(`/appointments/${id}/cancel`);
       if (res.data?.appointment) {
