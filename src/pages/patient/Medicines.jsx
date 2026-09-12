@@ -2,24 +2,49 @@
  * Medicines.jsx — /patient/medicines
  * ─────────────────────────────────────────────────────────────────────────────
  * Fully dynamic: searches medicine availability via searchMedicines() RPC.
+ * Only shows medicines that have been prescribed to the patient.
  * Debounced input. Loading / empty / error states. No mock data.
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import { Badge } from '../../components/ui/Badge'
 import { Skeleton } from '../../components/ui/Misc'
-import { searchMedicines } from '../../lib/db'
+import { searchMedicines, getMyPrescriptions } from '../../lib/db'
 import { Pill, Search, MapPin, Clock, CheckCircle2, XCircle, AlertCircle, Loader2 } from 'lucide-react'
 
 export default function Medicines() {
   const [query,    setQuery]    = useState('')
   const [filter,   setFilter]   = useState('all')
   const [results,  setResults]  = useState([])
+  const [prescribedMedicines, setPrescribedMedicines] = useState([])
+  const [prescriptionsLoading, setPrescriptionsLoading] = useState(true)
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState(null)
   const [searched, setSearched] = useState(false)
 
   const debounceRef = useRef(null)
+
+  useEffect(() => {
+    const fetchPrescriptions = async () => {
+      try {
+        const data = await getMyPrescriptions()
+        const medNames = []
+        data?.forEach(p => {
+          p.prescription_items?.forEach(item => {
+            if (item.medicine_name) {
+              medNames.push(item.medicine_name.toLowerCase().trim())
+            }
+          })
+        })
+        setPrescribedMedicines(medNames)
+      } catch (err) {
+        console.error('Error fetching prescriptions:', err)
+      } finally {
+        setPrescriptionsLoading(false)
+      }
+    }
+    fetchPrescriptions()
+  }, [])
 
   const runSearch = useCallback(async (q, f) => {
     setLoading(true)
@@ -52,17 +77,16 @@ export default function Medicines() {
     runSearch('', 'all')
   }, [runSearch])
 
-  // Client-side govt filter (search_medicines RPC doesn't have p_govt param)
-  const displayed = filter === 'govt'
-    ? results.filter(m => m.is_govt)
-    : results
+  const displayed = results.filter(m => 
+    prescribedMedicines.some(pMed => m.name.toLowerCase().includes(pMed) || pMed.includes(m.name.toLowerCase()))
+  )
 
   return (
     <AppLayout role="patient">
       <div className="p-4 md:p-6 space-y-6 max-w-3xl mx-auto">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Medicine Availability</h1>
-          <p className="text-text-muted text-sm">Check real-time medicine stock at nearby facilities</p>
+          <h1 className="text-2xl font-bold text-text-primary">My Prescribed Medicines</h1>
+          <p className="text-text-muted text-sm">Check real-time availability of your prescribed medicines at nearby facilities</p>
         </div>
 
         {/* Search */}
@@ -74,7 +98,7 @@ export default function Medicines() {
             value={query}
             onChange={e => setQuery(e.target.value)}
           />
-          {loading && (
+          {(loading || prescriptionsLoading) && (
             <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted animate-spin" />
           )}
         </div>
@@ -85,7 +109,6 @@ export default function Medicines() {
             { id: 'all',         label: 'All' },
             { id: 'available',   label: 'Available Now' },
             { id: 'unavailable', label: 'Out of Stock' },
-            { id: 'govt',        label: 'Govt Facility' },
           ].map(f => (
             <button key={f.id} onClick={() => setFilter(f.id)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
@@ -107,14 +130,20 @@ export default function Medicines() {
 
         {/* Results */}
         <div className="space-y-3">
-          {loading && !searched ? (
+          {(loading || prescriptionsLoading) && !searched ? (
             [1,2,3,4].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)
-          ) : displayed.length === 0 && searched && !loading ? (
+          ) : displayed.length === 0 && searched && !(loading || prescriptionsLoading) ? (
             <div className="text-center py-12 text-text-muted">
               <Pill className="w-10 h-10 mx-auto mb-3 text-border" />
-              <p className="text-sm font-medium text-text-primary">No medicines found</p>
-              {query && <p className="text-xs mt-1">No results for "{query}"</p>}
-              {!query && <p className="text-xs mt-1">Try searching for a medicine name above.</p>}
+              {prescribedMedicines.length === 0 ? (
+                <p className="text-sm font-medium text-text-primary">You have no prescribed medicines on record.</p>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-text-primary">No prescribed medicines found</p>
+                  {query && <p className="text-xs mt-1">No results for "{query}" matching your prescriptions.</p>}
+                  {!query && <p className="text-xs mt-1">Try searching for a medicine name above.</p>}
+                </>
+              )}
             </div>
           ) : (
             displayed.map((m, idx) => (
@@ -135,7 +164,6 @@ export default function Medicines() {
                           ? <><CheckCircle2 className="w-3 h-3" /> Available</>
                           : <><XCircle     className="w-3 h-3" /> Out of Stock</>}
                       </Badge>
-                      {m.is_govt && <Badge variant="blue">Govt</Badge>}
                     </div>
                     <div className="flex items-center gap-4 mt-2 text-xs text-text-muted flex-wrap">
                       <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{m.facility_name}</span>
