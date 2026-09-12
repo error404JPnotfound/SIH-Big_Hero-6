@@ -804,3 +804,62 @@ export async function getDoctorPatients(profileId) {
   if (error) throw error
   return [...new Map((data || []).filter(row => row.patients).map(row => [row.patients.id, row.patients])).values()]
 }
+
+/** Doctor: fetch clinical worklists for referrals, diagnostics, prescriptions and follow-ups */
+export async function getDoctorClinicalWorklists(profileId) {
+  const doctor = await getDoctorByProfileId(profileId)
+
+  const [referralsRes, diagnosticsRes, prescriptionsRes, followUpsRes] = await Promise.all([
+    supabase
+      .from('referrals')
+      .select(`
+        id, department, reason, urgency, status, notes, created_at,
+        patients:patient_id (id, patient_code, profiles:profile_id (full_name, phone)),
+        from_facility:from_facility (name),
+        to_facility:to_facility (name)
+      `)
+      .eq('referring_doctor', doctor.id)
+      .order('created_at', { ascending: false }),
+
+    supabase
+      .from('diagnostics')
+      .select(`
+        id, test_name, status, scheduled_at, result_notes, report_url, created_at,
+        patients:patient_id (id, patient_code, profiles:profile_id (full_name, phone)),
+        facilities:facility_id (name)
+      `)
+      .eq('requested_by', doctor.id)
+      .order('created_at', { ascending: false }),
+
+    supabase
+      .from('prescriptions')
+      .select(`
+        id, issued_at, pdf_url,
+        patients:patient_id (id, patient_code, profiles:profile_id (full_name, phone)),
+        prescription_items (id, medicine_name, dosage, frequency, duration, instructions)
+      `)
+      .eq('doctor_id', doctor.id)
+      .order('issued_at', { ascending: false }),
+
+    supabase
+      .from('follow_ups')
+      .select(`
+        id, category, risk_level, last_visit, next_due, status, notes,
+        patients:patient_id (id, patient_code, profiles:profile_id (full_name, phone))
+      `)
+      .eq('doctor_id', doctor.id)
+      .order('next_due', { ascending: true }),
+  ])
+
+  for (const result of [referralsRes, diagnosticsRes, prescriptionsRes, followUpsRes]) {
+    if (result.error) throw result.error
+  }
+
+  return {
+    doctor,
+    referrals: referralsRes.data || [],
+    diagnostics: diagnosticsRes.data || [],
+    prescriptions: prescriptionsRes.data || [],
+    followUps: followUpsRes.data || [],
+  }
+}

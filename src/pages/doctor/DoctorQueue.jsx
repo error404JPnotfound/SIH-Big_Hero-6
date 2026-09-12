@@ -25,7 +25,6 @@ import { Play, SkipForward, Clock, AlertCircle, Plus, Loader2, RefreshCw } from 
 const PRIORITY_MAP = {
   emergency: { variant: 'critical', label: 'Emergency' },
   high:      { variant: 'critical', label: 'High' },
-  medium:    { variant: 'warning', label: 'Medium' },
   low:       { variant: 'success', label: 'Low' },
 }
 
@@ -64,11 +63,11 @@ function PrescriptionForm({ onSave, loading }) {
   return (
     <div className="space-y-4">
       {items.map((item, idx) => (
-        <div key={idx} className="bg-bg rounded-xl p-4 border border-border space-y-3">
+        <div key={idx} className="bg-canvas rounded-xl p-4 border border-border-subtle space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-navy">Medicine {idx + 1}</p>
+            <p className="text-sm font-semibold text-text-primary">Medicine {idx + 1}</p>
             {items.length > 1 && (
-              <button onClick={() => setItems(i => i.filter((_, i2) => i2 !== idx))} className="text-xs text-critical hover:underline">
+              <button onClick={() => setItems(i => i.filter((_, i2) => i2 !== idx))} className="text-xs text-status-critical hover:underline">
                 Remove
               </button>
             )}
@@ -82,10 +81,10 @@ function PrescriptionForm({ onSave, loading }) {
           <Input label="Instructions" placeholder="After food" value={item.instructions} onChange={e => setField(idx, 'instructions', e.target.value)} />
         </div>
       ))}
-      <button onClick={addItem} className="flex items-center gap-1.5 text-sm text-teal font-medium hover:underline">
+      <button onClick={addItem} className="flex items-center gap-1.5 text-sm text-brand-default font-medium hover:underline">
         <Plus className="w-4 h-4" /> Add medicine
       </button>
-      <Button className="w-full bg-teal text-white" size="lg" disabled={loading} onClick={() => onSave(items)}>
+      <Button className="w-full bg-brand-default text-white hover:bg-brand-hover" size="lg" disabled={loading} onClick={() => onSave(items)}>
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Prescription'}
       </Button>
     </div>
@@ -209,15 +208,15 @@ function ConsultationModal({ patient, doctor, open, onClose, onFinishConsultatio
     }
   }
 
-  const pm = PRIORITY_MAP[patient.priority] || PRIORITY_MAP.medium
+  const pm = PRIORITY_MAP[patient.priority] || PRIORITY_MAP.low
 
   return (
     <Modal open={open} onClose={onClose} title={`Consultation — ${patient.name}`} size="xl">
-      <div className="flex items-center gap-3 mb-5 p-3 bg-bg rounded-xl border border-border">
-        <div className="w-10 h-10 rounded-full bg-teal flex items-center justify-center text-white font-bold">{patient.name?.[0] || 'P'}</div>
+      <div className="flex items-center gap-3 mb-5 p-3 bg-canvas rounded-xl border border-border-subtle">
+        <div className="w-10 h-10 rounded-full bg-brand-default flex items-center justify-center text-white font-bold">{patient.name?.[0] || 'P'}</div>
         <div>
-          <p className="font-semibold text-navy text-sm">{patient.name} · {patient.age} yrs</p>
-          <p className="text-xs text-muted">{patient.reason || 'General Consultation'}</p>
+          <p className="font-semibold text-text-primary text-sm">{patient.name} · {patient.age} yrs</p>
+          <p className="text-xs text-text-muted">{patient.reason || 'General Consultation'}</p>
         </div>
         <Badge variant={pm.variant} className="ml-auto">{pm.label}</Badge>
       </div>
@@ -244,10 +243,10 @@ function ConsultationModal({ patient, doctor, open, onClose, onFinishConsultatio
           <Textarea label="Assessment / Diagnosis" placeholder="Clinical assessment and diagnosis..." rows={3} value={notes.assessment} onChange={e => setNotes(n => ({ ...n, assessment: e.target.value }))} />
           <Textarea label="Plan" placeholder="Treatment plan, follow-up instructions..." rows={3} value={notes.plan} onChange={e => setNotes(n => ({ ...n, plan: e.target.value }))} />
           <div className="flex gap-2">
-            <Button className="bg-teal text-white flex-1" disabled={loading} onClick={handleSaveNotes}>
+            <Button className="bg-brand-default text-white hover:bg-brand-hover flex-1" disabled={loading} onClick={handleSaveNotes}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Notes'}
             </Button>
-            <Button className="bg-navy text-white flex-1" disabled={loading} onClick={handleCompleteConsultation}>
+            <Button className="bg-brand-default text-white hover:bg-brand-hover flex-1" disabled={loading} onClick={handleCompleteConsultation}>
               Complete Consultation & Close
             </Button>
           </div>
@@ -264,7 +263,7 @@ function ConsultationModal({ patient, doctor, open, onClose, onFinishConsultatio
           <Input label="Blood Sugar (mg/dL)" placeholder="110" value={vitals.blood_sugar} onChange={e => setVitals(v => ({ ...v, blood_sugar: e.target.value }))} />
           <Input label="Weight (kg)" placeholder="65" value={vitals.weight} onChange={e => setVitals(v => ({ ...v, weight: e.target.value }))} />
           <div className="col-span-2">
-            <Button className="bg-teal text-white w-full" disabled={loading} onClick={handleSaveVitals}>
+            <Button className="bg-brand-default text-white hover:bg-brand-hover w-full" disabled={loading} onClick={handleSaveVitals}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Vitals'}
             </Button>
           </div>
@@ -298,7 +297,7 @@ function ConsultationModal({ patient, doctor, open, onClose, onFinishConsultatio
             <option value="urgent">Urgent</option>
             <option value="emergency">Emergency</option>
           </Select>
-          <Button className="bg-teal text-white w-full" disabled={loading} onClick={handleCreateReferral}>
+          <Button className="bg-brand-default text-white hover:bg-brand-hover w-full" disabled={loading} onClick={handleCreateReferral}>
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Referral'}
           </Button>
         </div>
@@ -319,9 +318,10 @@ export default function DoctorQueue() {
   const [actionLoadingId, setActionLoadingId] = useState(null)
   const [searchParams] = useSearchParams()
   const searchQuery = (searchParams.get('q') || '').toLowerCase()
+  const isDoctorSession = user?.role === 'doctor' && !demoMode && user?.id && !String(user.id).endsWith('-demo')
 
   const fetchDoctorAndQueue = useCallback(async () => {
-    if (!user?.id || demoMode) {
+    if (!isDoctorSession) {
       setDoctor(null)
       setQueue([])
       setLoading(false)
@@ -349,7 +349,12 @@ export default function DoctorQueue() {
     } finally {
       setLoading(false)
     }
-  }, [user?.id, demoMode])
+  }, [isDoctorSession, user?.id])
+
+  useEffect(() => {
+    if (!user || user.role === 'doctor') return
+    navigate(`/${user.role}`, { replace: true })
+  }, [navigate, user])
 
   useEffect(() => {
     fetchDoctorAndQueue()
@@ -357,7 +362,7 @@ export default function DoctorQueue() {
 
   // Realtime subscription
   useEffect(() => {
-    if (!doctor?.facility_id || demoMode) return undefined
+    if (!doctor?.facility_id || !isDoctorSession) return undefined
 
     const channel = supabase
       .channel(`doctor-queue:${doctor.facility_id}`)
@@ -369,20 +374,19 @@ export default function DoctorQueue() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [doctor?.facility_id, demoMode, fetchDoctorAndQueue])
+  }, [doctor?.facility_id, isDoctorSession, fetchDoctorAndQueue])
 
   // Map queue to formatted patients
   const queuePatients = useMemo(() => {
-    if (demoMode || !user?.id) {
+    if (!isDoctorSession) {
       return []
     }
     return queue.map(item => {
       const appt = item.appointments
       const pat = appt?.patients
-      let priority = 'medium'
+      let priority = 'low'
       if (item.status === 'emergency') priority = 'emergency'
       else if (pat?.is_high_risk) priority = 'high'
-      else if (item.position > 3) priority = 'low'
 
       return {
         id: item.id,
@@ -398,7 +402,7 @@ export default function DoctorQueue() {
         appointment: appt?.scheduled_at ? new Date(appt.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—',
       }
     }).filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery) || p.reason.toLowerCase().includes(searchQuery) || String(p.queue_no).includes(searchQuery))
-  }, [queue, demoMode, user?.id, searchQuery])
+  }, [queue, isDoctorSession, searchQuery])
 
   const stats = useMemo(() => {
     const waiting = queuePatients.filter(p => p.queue_status === 'waiting' || p.queue_status === 'emergency').length
@@ -410,7 +414,7 @@ export default function DoctorQueue() {
   const handleStart = async (patient) => {
     setActivePatient(patient)
     setModalOpen(true)
-    if (!demoMode && patient.id && patient.appointment_id) {
+    if (isDoctorSession && patient.id && patient.appointment_id) {
       try {
         await Promise.all([
           updateQueueStatus(patient.id, 'in_consultation'),
@@ -425,7 +429,7 @@ export default function DoctorQueue() {
   }
 
   const handleFinishConsultation = async (patient) => {
-    if (!demoMode && patient?.id && patient?.appointment_id) {
+    if (isDoctorSession && patient?.id && patient?.appointment_id) {
       await Promise.all([
         updateQueueStatus(patient.id, 'completed'),
         updateAppointmentStatus(patient.appointment_id, 'completed'),
@@ -442,7 +446,7 @@ export default function DoctorQueue() {
   }
 
   const handleSkip = async (patient) => {
-    if (!patient?.id || demoMode) return
+    if (!patient?.id || !isDoctorSession) return
     setActionLoadingId(patient.id)
     try {
       await updateQueueStatus(patient.id, 'skipped')
@@ -455,7 +459,7 @@ export default function DoctorQueue() {
   }
 
   const handleTogglePause = async () => {
-    if (!doctor?.id || demoMode) return
+    if (!doctor?.id || !isDoctorSession) return
     try {
       const updated = await updateDoctorAvailability(doctor.id, !doctor.is_available)
       setDoctor(prev => ({ ...prev, is_available: updated.is_available }))
@@ -471,8 +475,8 @@ export default function DoctorQueue() {
       <div className="p-4 md:p-6 space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-navy">Today's Queue</h1>
-            <p className="text-muted text-sm">{facilityName} · {stats.waiting} patients waiting</p>
+            <h1 className="text-2xl font-bold text-text-primary">Today's Queue</h1>
+            <p className="text-text-muted text-sm">{facilityName} · {stats.waiting} patients waiting</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={fetchDoctorAndQueue}>
@@ -481,7 +485,7 @@ export default function DoctorQueue() {
             <Button variant="outline" size="sm" onClick={handleTogglePause}>
               {doctor?.is_available === false ? 'Resume Queue' : 'Pause Queue'}
             </Button>
-            <Button className="bg-teal text-white" size="sm" onClick={handleNextPatient} disabled={stats.waiting === 0}>
+            <Button className="bg-brand-default text-white hover:bg-brand-hover" size="sm" onClick={handleNextPatient} disabled={stats.waiting === 0}>
               Next Patient
             </Button>
           </div>
@@ -493,13 +497,13 @@ export default function DoctorQueue() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: 'Waiting', value: stats.waiting, color: 'text-warning' },
-            { label: 'Completed Today', value: stats.completed, color: 'text-success' },
-            { label: 'High Priority', value: stats.highPriority, color: 'text-critical' },
+            { label: 'Waiting', value: stats.waiting, color: 'text-status-warning' },
+            { label: 'Completed Today', value: stats.completed, color: 'text-status-success' },
+            { label: 'High Priority', value: stats.highPriority, color: 'text-status-critical' },
           ].map(s => (
-            <div key={s.label} className="bg-surface rounded-xl border border-border p-4 text-center">
+            <div key={s.label} className="bg-surface-elevated rounded-xl border border-border-subtle p-4 text-center">
               <div className={`text-3xl font-bold ${s.color}`}>{loading ? '—' : s.value}</div>
-              <div className="text-xs text-muted mt-1">{s.label}</div>
+              <div className="text-xs text-text-muted mt-1">{s.label}</div>
             </div>
           ))}
         </div>
@@ -507,41 +511,41 @@ export default function DoctorQueue() {
         {/* Queue cards */}
         <div className="space-y-3">
           {loading ? (
-            <div className="bg-surface rounded-xl border border-border p-8 text-center text-muted">
+            <div className="bg-surface-elevated rounded-xl border border-border-subtle p-8 text-center text-text-muted">
               <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
               Loading live queue...
             </div>
           ) : queuePatients.length === 0 ? (
-            <div className="bg-surface rounded-xl border border-border p-8 text-center text-muted">
+            <div className="bg-surface-elevated rounded-xl border border-border-subtle p-8 text-center text-text-muted">
               No patients in the queue for today.
             </div>
           ) : (
             queuePatients.map((patient) => {
-              const pm = PRIORITY_MAP[patient.priority] || PRIORITY_MAP.medium
+              const pm = PRIORITY_MAP[patient.priority] || PRIORITY_MAP.low
               const isActioning = actionLoadingId === patient.id
 
               return (
-                <div key={patient.id} className={`bg-surface rounded-xl border p-4 hover:shadow-sm transition-shadow ${patient.priority === 'high' || patient.priority === 'emergency' ? 'border-critical/30' : 'border-border'}`}>
+                <div key={patient.id} className={`bg-surface-elevated rounded-xl border p-4 hover:shadow-sm transition-shadow ${patient.priority === 'high' || patient.priority === 'emergency' ? 'border-status-critical/30' : 'border-border-subtle'}`}>
                   <div className="flex items-center gap-4 flex-wrap sm:flex-nowrap">
                     {/* Queue number */}
                     <div className="w-14 h-14 rounded-xl bg-navy flex flex-col items-center justify-center flex-shrink-0">
                       <span className="text-xs text-surface/50">No.</span>
-                      <span className="font-bold text-teal font-mono">{patient.queue_no}</span>
+                      <span className="font-bold text-brand-default font-mono">{patient.queue_no}</span>
                     </div>
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-navy">{patient.name}</span>
-                        <span className="text-sm text-muted">{patient.age} yrs</span>
+                        <span className="font-semibold text-text-primary">{patient.name}</span>
+                        <span className="text-sm text-text-muted">{patient.age} yrs</span>
                         <Badge variant={pm.variant}>{pm.label}</Badge>
-                        {(patient.priority === 'high' || patient.priority === 'emergency') && <AlertCircle className="w-4 h-4 text-critical" />}
+                        {(patient.priority === 'high' || patient.priority === 'emergency') && <AlertCircle className="w-4 h-4 text-status-critical" />}
                         {patient.queue_status === 'in_consultation' && <Badge variant="info">Active Consultation</Badge>}
                         {patient.queue_status === 'skipped' && <Badge variant="warning">Skipped</Badge>}
                         {patient.queue_status === 'completed' && <Badge variant="success">Completed</Badge>}
                       </div>
-                      <p className="text-sm text-muted mt-0.5">{patient.reason}</p>
-                      <div className="flex items-center gap-3 mt-1.5 text-xs text-muted">
+                      <p className="text-sm text-text-muted mt-0.5">{patient.reason}</p>
+                      <div className="flex items-center gap-3 mt-1.5 text-xs text-text-muted">
                         <span className="flex items-center gap-1"><Clock className="w-3 h-3" />Waiting {patient.waiting_since}</span>
                         <span>Appt: {patient.appointment}</span>
                       </div>
@@ -559,7 +563,9 @@ export default function DoctorQueue() {
                       )}
                       <Button
                         size="sm"
-                        className="bg-teal text-white"
+                        className={patient.queue_status === 'in_consultation'
+                          ? 'border border-border-subtle bg-canvas text-text-primary shadow-none hover:bg-bg'
+                          : 'bg-brand-default text-white hover:bg-brand-hover'}
                         onClick={() => handleStart(patient)}
                         disabled={patient.queue_status === 'completed'}
                       >

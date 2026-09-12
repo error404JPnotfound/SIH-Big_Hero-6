@@ -108,6 +108,12 @@ export default function LoginPage() {
 
   // ── Demo mode ─────────────────────────────────────────────────
   const handleDemo = async () => {
+    if (selectedRole === 'doctor') {
+      setTab('email')
+      setEmail('diyathakrar68@gmail.com')
+      setError('Doctor demo data is stored in Supabase. Please sign in with the seeded doctor email instead of Demo Mode.')
+      return
+    }
     setLoading(true)
     await new Promise(r => setTimeout(r, 500))
     await loginDemo(selectedRole)
@@ -287,13 +293,15 @@ export default function LoginPage() {
                   ✨ Demo Mode
                 </p>
                 <p className="text-xs text-text-muted mb-4 leading-relaxed">
-                  Explore the {currentRole.label} portal instantly with realistic sample data. No login needed.
+                  {selectedRole === 'doctor'
+                    ? 'Doctor sample data is stored in Supabase, so use the seeded doctor email login to view live appointments and queues.'
+                    : `Explore the ${currentRole.label} portal instantly with realistic sample data. No login needed.`}
                 </p>
                 <Button
                   variant="outline" size="sm" className="w-full border-brand-default/20 bg-subtle/30 text-brand-default hover:bg-brand-hover hover:text-white shadow-none"
                   onClick={handleDemo} loading={loading}
                 >
-                  Enter Demo Mode as {currentRole.label}
+                  {selectedRole === 'doctor' ? 'Use Doctor Email Login' : `Enter Demo Mode as ${currentRole.label}`}
                 </Button>
               </div>
             </>

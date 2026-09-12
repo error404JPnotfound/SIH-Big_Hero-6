@@ -21,6 +21,7 @@ import FacilityDetails from './pages/patient/FacilityDetails'
 import DoctorDashboard from './pages/doctor/DoctorDashboard'
 import DoctorQueue from './pages/doctor/DoctorQueue'
 import PatientProfile from './pages/doctor/PatientProfile'
+import DoctorWorklist from './pages/doctor/DoctorWorklist'
 
 // Admin portal
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -57,10 +58,10 @@ export default function App() {
           <Route path="/doctor" element={<DoctorDashboard />} />
           <Route path="/doctor/queue" element={<DoctorQueue />} />
           <Route path="/doctor/patients" element={<PatientProfile />} />
-          <Route path="/doctor/referrals" element={<DoctorQueue />} />
-          <Route path="/doctor/diagnostics" element={<DoctorQueue />} />
-          <Route path="/doctor/prescriptions" element={<DoctorQueue />} />
-          <Route path="/doctor/follow-ups" element={<DoctorQueue />} />
+          <Route path="/doctor/referrals" element={<DoctorWorklist type="referrals" />} />
+          <Route path="/doctor/diagnostics" element={<DoctorWorklist type="diagnostics" />} />
+          <Route path="/doctor/prescriptions" element={<DoctorWorklist type="prescriptions" />} />
+          <Route path="/doctor/follow-ups" element={<DoctorWorklist type="followUps" />} />
 
           {/* Admin */}
           <Route path="/admin" element={<AdminDashboard />} />

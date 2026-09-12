@@ -20,7 +20,6 @@ import {
 const PRIORITY_META = {
   emergency: { variant: 'critical', label: 'Emergency' },
   high:      { variant: 'critical', label: 'High Priority' },
-  medium:    { variant: 'warning', label: 'Medium' },
   low:       { variant: 'success', label: 'Low' },
 }
 
@@ -52,26 +51,29 @@ function getWaitingTime(createdAt, status) {
 }
 
 function PatientQueueRow({ patient, onStart, onView, startingId }) {
-  const pm = PRIORITY_META[patient.priority] || PRIORITY_META.medium
+  const pm = PRIORITY_META[patient.priority] || PRIORITY_META.low
   const isStarting = startingId === patient.id
   const isActive = patient.queue_status === 'in_consultation'
+  const startButtonClass = isActive
+    ? 'border border-border-subtle bg-canvas text-text-muted shadow-none disabled:opacity-100'
+    : 'bg-brand-default text-white hover:bg-brand-hover'
 
   return (
-    <tr className="border-b border-border hover:bg-bg transition-colors">
+    <tr className="border-b border-border-subtle hover:bg-bg transition-colors">
       <td className="px-4 py-3">
-        <span className="font-mono font-bold text-teal text-sm">{patient.queue_no}</span>
+        <span className="font-mono font-bold text-brand-default text-sm">{patient.queue_no}</span>
       </td>
       <td className="px-4 py-3">
         <div>
-          <p className="font-semibold text-navy text-sm">{patient.name}</p>
-          <p className="text-xs text-muted">{patient.age} yrs · {patient.reason || 'General consultation'}</p>
+          <p className="font-semibold text-text-primary text-sm">{patient.name}</p>
+          <p className="text-xs text-text-muted">{patient.age} yrs · {patient.reason || 'General consultation'}</p>
         </div>
       </td>
       <td className="px-4 py-3">
         <Badge variant={pm.variant}>{pm.label}</Badge>
       </td>
       <td className="px-4 py-3">
-        <span className="text-xs text-muted flex items-center gap-1">
+        <span className="text-xs text-text-muted flex items-center gap-1">
           <Clock className="w-3 h-3" /> {patient.waiting_since}
         </span>
       </td>
@@ -79,14 +81,14 @@ function PatientQueueRow({ patient, onStart, onView, startingId }) {
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            className="bg-teal text-white"
+            className={startButtonClass}
             onClick={() => onStart(patient)}
             disabled={isStarting || isActive}
           >
             {isStarting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
             {isActive ? 'Active' : 'Start'}
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => onView(patient)}>
+          <Button size="icon" variant="ghost" className="h-8 w-8 text-text-muted hover:text-text-primary" onClick={() => onView(patient)}>
             <Eye className="w-3 h-3" />
           </Button>
         </div>
@@ -113,9 +115,10 @@ export default function DoctorDashboard() {
   const [activePatient, setActivePatient] = useState(null)
   const [startingId, setStartingId] = useState(null)
   const [, setClockTick] = useState(0)
+  const isDoctorSession = user?.role === 'doctor' && !demoMode && user?.id && !String(user.id).endsWith('-demo')
 
   const loadDashboard = useCallback(async () => {
-    if (!user?.id || demoMode) {
+    if (!isDoctorSession) {
       setDoctor(null)
       setAppointments([])
       setQueue([])
@@ -214,7 +217,12 @@ export default function DoctorDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [user?.id, demoMode])
+  }, [isDoctorSession, user?.id])
+
+  useEffect(() => {
+    if (!user || user.role === 'doctor') return
+    navigate(`/${user.role}`, { replace: true })
+  }, [navigate, user])
 
   useEffect(() => {
     setLoading(true)
@@ -227,7 +235,7 @@ export default function DoctorDashboard() {
   }, [])
 
   useEffect(() => {
-    if (!doctor?.id || !doctor?.facility_id || demoMode) return undefined
+    if (!doctor?.id || !doctor?.facility_id || !isDoctorSession) return undefined
 
     const channel = supabase
       .channel(`doctor-dashboard:${doctor.id}`)
@@ -251,16 +259,15 @@ export default function DoctorDashboard() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [doctor?.id, doctor?.facility_id, demoMode, loadDashboard])
+  }, [doctor?.id, doctor?.facility_id, isDoctorSession, loadDashboard])
 
   const queuePatients = queue.map(item => {
     const appointment = item.appointments
     const patient = appointment?.patients
 
-    let priority = 'medium'
+    let priority = 'low'
     if (item.status === 'emergency') priority = 'emergency'
     else if (patient?.is_high_risk) priority = 'high'
-    else if (item.position > 3) priority = 'low'
 
     return {
       id: item.id,
@@ -306,7 +313,7 @@ export default function DoctorDashboard() {
   }
 
   async function toggleAvailability() {
-    if (!doctor?.id || demoMode) return
+    if (!doctor?.id || !isDoctorSession) return
     try {
       const updated = await updateDoctorAvailability(doctor.id, !doctor.is_available)
       setDoctor(prev => ({ ...prev, is_available: updated.is_available }))
@@ -328,23 +335,23 @@ export default function DoctorDashboard() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold text-navy">{greeting}, {name} 👋</h1>
-            <p className="text-muted text-sm">{facilityName} · {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+            <h1 className="text-2xl font-bold text-text-primary">{greeting}, {name} 👋</h1>
+            <p className="text-text-muted text-sm">{facilityName} · {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={toggleAvailability}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold cursor-pointer transition-colors ${doctor?.is_available ? 'bg-success-bg border-success/20 text-success hover:bg-success-bg/80' : 'bg-bg border-border text-muted hover:bg-surface'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold cursor-pointer transition-colors ${doctor?.is_available ? 'bg-status-success-bg border-status-success/20 text-status-success hover:bg-status-success-bg/80' : 'bg-canvas border-border-subtle text-text-muted hover:bg-surface-elevated'}`}
             >
-              <span className={`w-2 h-2 rounded-full ${doctor?.is_available ? 'bg-success animate-pulse' : 'bg-muted'}`} />
+              <span className={`w-2 h-2 rounded-full ${doctor?.is_available ? 'bg-status-success animate-pulse' : 'bg-text-muted'}`} />
               {doctor?.is_available ? 'Clinic Open' : 'Clinic Closed'}
             </button>
           </div>
         </div>
 
         {demoMode && (
-          <Alert type="info" title="Live dashboard requires a real doctor login">
-            Demo mode is no longer using hard-coded patient data. Sign in with a doctor account connected to Supabase to see live appointments, queues, referrals and follow-ups.
+          <Alert type="info" title="Sign in with the seeded doctor account">
+            Doctor data is loaded from Supabase, and Demo Mode does not create a live Supabase doctor session. Sign out, choose Doctor, then use email login to view the seeded appointments and queue.
           </Alert>
         )}
 
@@ -374,36 +381,36 @@ export default function DoctorDashboard() {
         {/* Today's Queue */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-navy">Today's Queue</h2>
+            <h2 className="text-lg font-bold text-text-primary">Today's Queue</h2>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted">{loading ? 'Loading...' : `${queuePatients.length} patients waiting`}</span>
+              <span className="text-xs text-text-muted">{loading ? 'Loading...' : `${queuePatients.length} patients waiting`}</span>
               <Button size="sm" variant="outline" onClick={() => navigate('/doctor/queue')}>Full Queue View</Button>
             </div>
           </div>
 
-          <div className="bg-surface rounded-xl border border-border overflow-hidden shadow-sm">
+          <div className="bg-surface-elevated rounded-xl border border-border-subtle overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-bg border-b border-border">
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Queue</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Patient</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Priority</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Waiting</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Actions</th>
+                  <tr className="bg-canvas border-b border-border-subtle">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Queue</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Patient</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Priority</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Waiting</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="5" className="px-4 py-10 text-center text-sm text-muted">
+                      <td colSpan="5" className="px-4 py-10 text-center text-sm text-text-muted">
                         <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
                         Loading today's live queue...
                       </td>
                     </tr>
                   ) : queuePatients.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-4 py-10 text-center text-sm text-muted">
+                      <td colSpan="5" className="px-4 py-10 text-center text-sm text-text-muted">
                         No patients are currently waiting in your queue.
                       </td>
                     </tr>
@@ -432,15 +439,15 @@ export default function DoctorDashboard() {
             { title: 'Pending Referrals', desc: `${pendingReferrals} referrals awaiting action`, icon: CheckCircle2, href: '/doctor/referrals', color: 'warning' },
           ].map(action => (
             <button key={action.title} onClick={() => navigate(action.href)}
-              className="flex items-center gap-4 p-4 bg-surface rounded-xl border border-border hover:shadow-md hover:-translate-y-0.5 transition-all text-left">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${action.color === 'teal' ? 'bg-teal-light text-teal' : action.color === 'blue' ? 'bg-blue-light text-blue' : 'bg-warning-bg text-warning'}`}>
+              className="flex items-center gap-4 p-4 bg-surface-elevated rounded-xl border border-border-subtle hover:shadow-md hover:-translate-y-0.5 transition-all text-left">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${action.color === 'teal' ? 'bg-subtle text-brand-default' : action.color === 'blue' ? 'bg-brand-secondary-light text-brand-secondary' : 'bg-status-warning-bg text-status-warning'}`}>
                 <action.icon className="w-5 h-5" />
               </div>
               <div>
-                <p className="font-semibold text-navy text-sm">{action.title}</p>
-                <p className="text-xs text-muted">{action.desc}</p>
+                <p className="font-semibold text-text-primary text-sm">{action.title}</p>
+                <p className="text-xs text-text-muted">{action.desc}</p>
               </div>
-              <ChevronRight className="w-4 h-4 text-muted ml-auto" />
+              <ChevronRight className="w-4 h-4 text-text-muted ml-auto" />
             </button>
           ))}
         </div>

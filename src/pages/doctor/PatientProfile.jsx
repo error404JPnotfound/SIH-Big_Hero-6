@@ -26,9 +26,10 @@ export default function PatientProfile() {
   const patientId = searchParams.get('id')
   const navigate = useNavigate()
   const { user, demoMode } = useAuth()
+  const isDoctorSession = user?.role === 'doctor' && !demoMode && user?.id && !String(user.id).endsWith('-demo')
 
   const [tab, setTab] = useTabs('overview')
-  const [loading, setLoading] = useState(!!patientId && !demoMode)
+  const [loading, setLoading] = useState(!!patientId && isDoctorSession)
   const [error, setError] = useState('')
   const [data, setData] = useState(null)
 
@@ -40,7 +41,7 @@ export default function PatientProfile() {
     setLoading(true)
     async function load() {
       try {
-        if (!user?.id || demoMode) return
+        if (!isDoctorSession) return
         if (patientId) {
           const result = await getPatientProfileById(patientId)
           if (!cancelled) setData(result)
@@ -56,7 +57,12 @@ export default function PatientProfile() {
     }
     load()
     return () => { cancelled = true }
-  }, [patientId, demoMode, user?.id])
+  }, [patientId, isDoctorSession])
+
+  useEffect(() => {
+    if (!user || user.role === 'doctor') return
+    navigate(`/${user.role}`, { replace: true })
+  }, [navigate, user])
 
   // Extract patient info
   const patientInfo = data?.patient ? {
@@ -76,32 +82,32 @@ export default function PatientProfile() {
       label: 'Blood Pressure',
       value: latestVitals?.bp_systolic && latestVitals?.bp_diastolic ? `${latestVitals.bp_systolic}/${latestVitals.bp_diastolic}` : '—',
       unit: 'mmHg',
-      color: 'text-critical',
-      bg: 'bg-critical-bg'
+      color: 'text-status-critical',
+      bg: 'bg-status-critical-bg'
     },
     {
       icon: Droplets,
       label: 'Blood Sugar',
       value: latestVitals?.blood_sugar ? `${latestVitals.blood_sugar}` : '—',
       unit: 'mg/dL',
-      color: 'text-warning',
-      bg: 'bg-warning-bg'
+      color: 'text-status-warning',
+      bg: 'bg-status-warning-bg'
     },
     {
       icon: Weight,
       label: 'Weight',
       value: latestVitals?.weight ? `${latestVitals.weight}` : '—',
       unit: 'kg',
-      color: 'text-blue',
-      bg: 'bg-blue-light'
+      color: 'text-brand-secondary',
+      bg: 'bg-brand-secondary-light'
     },
     {
       icon: TrendingUp,
       label: 'Heart Rate',
       value: latestVitals?.heart_rate ? `${latestVitals.heart_rate}` : '—',
       unit: 'bpm',
-      color: 'text-success',
-      bg: 'bg-success-bg'
+      color: 'text-status-success',
+      bg: 'bg-status-success-bg'
     },
   ]
 
@@ -116,7 +122,7 @@ export default function PatientProfile() {
     title: `${a.reason || 'Consultation'} — Status: ${a.status}`,
     subtitle: `${a.doctors?.profiles?.full_name || 'Doctor'} · ${a.facilities?.name || 'Facility'}`,
     date: new Date(a.scheduled_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-    color: a.status === 'completed' ? 'bg-teal border-teal' : 'bg-blue border-blue',
+    color: a.status === 'completed' ? 'bg-brand-default border-brand-default' : 'bg-brand-secondary border-brand-secondary',
   })) : []
 
   const referralsList = data?.referrals?.length ? data.referrals.map(r => ({
@@ -147,12 +153,12 @@ export default function PatientProfile() {
             <p>Loading patient records...</p>
           </div>
         ) : !data ? (
-          <div className="bg-surface rounded-xl border border-border p-6 space-y-3">
-            <h1 className="text-xl font-bold text-navy">Patient Records</h1>
+          <div className="bg-surface-elevated rounded-xl border border-border-subtle p-6 space-y-3">
+            <h1 className="text-xl font-bold text-text-primary">Patient Records</h1>
             {demoMode ? <p>Sign in with a Supabase doctor account to view patient records.</p> : patientId ? <p>Patient record unavailable.</p> : <>
-              <p className="text-muted">Select a patient from your appointments.</p>
+              <p className="text-text-muted">Select a patient from your appointments.</p>
               {patients.length === 0 && <p>No patients assigned to you yet.</p>}
-              {patients.map(p => <button key={p.id} className="block w-full text-left border border-border rounded-lg p-3" onClick={() => setSearchParams({ id: p.id })}>
+              {patients.map(p => <button key={p.id} className="block w-full text-left border border-border-subtle rounded-lg p-3 bg-canvas hover:bg-bg text-text-primary transition-colors" onClick={() => setSearchParams({ id: p.id })}>
                 {p.profiles?.full_name || 'Patient'} · {p.patient_code}
               </button>)}
             </>}
@@ -162,7 +168,7 @@ export default function PatientProfile() {
           <>
             {/* Patient header */}
             <div className="bg-navy rounded-2xl p-6 flex items-start gap-5 flex-wrap sm:flex-nowrap">
-              <div className="w-16 h-16 rounded-2xl bg-teal flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
+              <div className="w-16 h-16 rounded-2xl bg-brand-default flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
                 {patientInfo.name?.[0] || 'P'}
               </div>
               <div className="flex-1">
@@ -180,7 +186,7 @@ export default function PatientProfile() {
                 </div>
               </div>
               <div className="flex gap-2 flex-shrink-0">
-                <Button size="sm" className="bg-teal text-white" onClick={() => navigate('/doctor/queue')}>
+                <Button size="sm" className="bg-brand-default text-white hover:bg-brand-hover" onClick={() => navigate('/doctor/queue')}>
                   Start Consultation
                 </Button>
               </div>
@@ -189,10 +195,10 @@ export default function PatientProfile() {
             {/* Vitals */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {vitalsGrid.map(v => (
-                <div key={v.label} className={`rounded-xl border border-border p-4 ${v.bg}`}>
+                <div key={v.label} className={`rounded-xl border border-border-subtle p-4 ${v.bg}`}>
                   <v.icon className={`w-5 h-5 mb-2 ${v.color}`} />
-                  <p className="text-xs text-muted">{v.label}</p>
-                  <p className={`text-xl font-bold ${v.color}`}>{v.value}<span className="text-xs font-normal ml-1 text-muted">{v.unit}</span></p>
+                  <p className="text-xs text-text-muted">{v.label}</p>
+                  <p className={`text-xl font-bold ${v.color}`}>{v.value}<span className="text-xs font-normal ml-1 text-text-muted">{v.unit}</span></p>
                 </div>
               ))}
             </div>
@@ -211,21 +217,21 @@ export default function PatientProfile() {
 
             {tab === 'overview' && (
               <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-surface rounded-xl border border-border p-5">
-                  <h3 className="font-semibold text-navy mb-3">Prescription History</h3>
+                <div className="bg-surface-elevated rounded-xl border border-border-subtle p-5">
+                  <h3 className="font-semibold text-text-primary mb-3">Prescription History</h3>
                   {activeMedications.length === 0 ? (
-                    <p className="text-xs text-muted">No prescriptions recorded.</p>
+                    <p className="text-xs text-text-muted">No prescriptions recorded.</p>
                   ) : (
                     activeMedications.map((m, idx) => (
-                      <div key={idx} className="flex justify-between text-sm py-2 border-b border-border last:border-0">
-                        <span className="font-medium text-navy">{m.name}</span>
-                        <span className="text-muted">{m.dosage}</span>
+                      <div key={idx} className="flex justify-between text-sm py-2 border-b border-border-subtle last:border-0">
+                        <span className="font-medium text-text-primary">{m.name}</span>
+                        <span className="text-text-muted">{m.dosage}</span>
                       </div>
                     ))
                   )}
                 </div>
-                <div className="bg-surface rounded-xl border border-border p-5">
-                  <h3 className="font-semibold text-navy mb-3">Quick Actions</h3>
+                <div className="bg-surface-elevated rounded-xl border border-border-subtle p-5">
+                  <h3 className="font-semibold text-text-primary mb-3">Quick Actions</h3>
                   <div className="space-y-2">
                     <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => navigate('/doctor/queue')}>
                       New Consultation / Prescription
@@ -242,7 +248,7 @@ export default function PatientProfile() {
             )}
 
             {tab === 'timeline' && (
-              <div className="bg-surface rounded-xl border border-border p-6">
+              <div className="bg-surface-elevated rounded-xl border border-border-subtle p-6">
                 {timelineItems.length ? <Timeline items={timelineItems} /> : <p>No appointment history recorded.</p>}
               </div>
             )}
@@ -250,13 +256,13 @@ export default function PatientProfile() {
             {tab === 'referrals' && (
               <div className="space-y-3">
                 {referralsList.length === 0 ? (
-                  <p className="text-sm text-muted p-4">No referrals found.</p>
+                  <p className="text-sm text-text-muted p-4">No referrals found.</p>
                 ) : (
                   referralsList.map(r => (
-                    <div key={r.id} className="bg-surface rounded-xl border border-border p-4 flex justify-between items-center">
+                    <div key={r.id} className="bg-surface-elevated rounded-xl border border-border-subtle p-4 flex justify-between items-center">
                       <div>
-                        <p className="font-medium text-navy text-sm">{r.dept} — {r.to}</p>
-                        <p className="text-xs text-muted">{r.reason} · {r.date}</p>
+                        <p className="font-medium text-text-primary text-sm">{r.dept} — {r.to}</p>
+                        <p className="text-xs text-text-muted">{r.reason} · {r.date}</p>
                       </div>
                       <Badge variant={r.status === 'completed' ? 'outline' : 'success'}>{r.status}</Badge>
                     </div>
@@ -268,13 +274,13 @@ export default function PatientProfile() {
             {tab === 'diagnostics' && (
               <div className="space-y-3">
                 {diagnosticsList.length === 0 ? (
-                  <p className="text-sm text-muted p-4">No diagnostic tests found.</p>
+                  <p className="text-sm text-text-muted p-4">No diagnostic tests found.</p>
                 ) : (
                   diagnosticsList.map(dx => (
-                    <div key={dx.id} className="bg-surface rounded-xl border border-border p-4 flex justify-between items-center">
+                    <div key={dx.id} className="bg-surface-elevated rounded-xl border border-border-subtle p-4 flex justify-between items-center">
                       <div>
-                        <p className="font-medium text-navy text-sm">{dx.name}</p>
-                        <p className="text-xs text-muted">{dx.facility} · {dx.date}</p>
+                        <p className="font-medium text-text-primary text-sm">{dx.name}</p>
+                        <p className="text-xs text-text-muted">{dx.facility} · {dx.date}</p>
                       </div>
                       <Badge variant={dx.status === 'result_ready' ? 'success' : 'warning'}>{String(dx.status).replace(/_/g,' ')}</Badge>
                     </div>
