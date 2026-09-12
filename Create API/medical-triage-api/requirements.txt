@@ -1,9 +1,0 @@
-fastapi
-uvicorn
-pydantic
-pydantic-settings
-supabase
-pytest
-python-dotenv
-httpx
-python-jose[cryptography]

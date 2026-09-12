@@ -20,7 +20,8 @@ export default function SymptomTriage() {
 
     try {
       const symptomList = symptoms.split(',').map(s => s.trim()).filter(Boolean)
-      const response = await fetch('http://localhost:8000/api/v1/triage', {
+      const apiUrl = import.meta.env.VITE_TRIAGE_API_URL;
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -31,7 +32,7 @@ export default function SymptomTriage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to connect to the Triage API. Ensure it is running on port 8000.')
+        throw new Error('Failed to connect to the Triage API.')
       }
 
       const data = await response.json()
