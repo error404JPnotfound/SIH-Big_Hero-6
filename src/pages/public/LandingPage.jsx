@@ -11,7 +11,7 @@ import LanguageSwitcher from '../../components/ui/LanguageSwitcher'
 function Hero() {
   const navigate = useNavigate()
   return (
-    <section className="relative overflow-hidden bg-navy py-24 lg:py-32">
+    <section className="relative overflow-hidden bg-white py-24 lg:py-32">
       {/* Decorative circles */}
       <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-brand-default/10 blur-3xl" />
       <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-brand-secondary/10 blur-3xl" />
@@ -20,16 +20,16 @@ function Hero() {
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left */}
           <div className="text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 bg-brand-default/20 text-brand-default rounded-full px-4 py-1.5 text-sm font-medium mb-6">
+            <div className="inline-flex items-center gap-2 bg-brand-default/10 text-brand-default rounded-full px-4 py-1.5 text-sm font-medium mb-6">
               <HeartPulse className="w-4 h-4" />
               Strengthening Public Healthcare
             </div>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-surface leading-tight mb-6">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-navy leading-tight mb-6">
               Healthcare Access,{' '}
               <span className="text-brand-default">Wherever</span>{' '}
               Care Is Needed.
             </h1>
-            <p className="text-lg text-surface/70 mb-8 max-w-xl mx-auto lg:mx-0">
+            <p className="text-lg text-text-muted mb-8 max-w-xl mx-auto lg:mx-0">
               Connect with healthcare professionals, manage appointments, track referrals and keep your health journey connected — from local health centres to specialists.
             </p>
 
@@ -61,10 +61,10 @@ function Hero() {
                     className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1"
                     style={{ left: `${50 + 40 * Math.cos(rad)}%`, top: `${50 + 40 * Math.sin(rad)}%` }}
                   >
-                    <div className={`w-12 h-12 rounded-full ${color}/20 border border-surface/10 flex items-center justify-center`}>
-                      <Icon className="w-5 h-5 text-surface/80" />
+                    <div className={`w-12 h-12 rounded-full ${color}/20 border border-navy/10 flex items-center justify-center shadow-sm`}>
+                      <Icon className="w-5 h-5 text-navy/70" />
                     </div>
-                    <span className="text-xs text-surface/60 font-medium text-center leading-tight">{label}</span>
+                    <span className="text-xs text-text-muted font-medium text-center leading-tight">{label}</span>
                   </div>
                 )
               })}
@@ -93,7 +93,6 @@ function HowItWorks() {
           <h2 className="text-3xl font-bold text-text-primary mb-4">How CareConnect Works</h2>
         </div>
         <div className="grid md:grid-cols-4 gap-8 relative">
-          <div className="hidden md:block absolute top-10 left-1/4 right-1/4 h-px bg-border" />
           {steps.map((step, i) => (
             <div key={step.num} className="flex flex-col items-center text-center">
               <div className="w-16 h-16 rounded-2xl gradient-teal flex items-center justify-center text-white text-xl font-bold mb-4 shadow-lg">
@@ -155,15 +154,15 @@ function Services() {
 
 function Footer() {
   return (
-    <footer className="bg-navy py-12 border-t border-surface/10">
+    <footer className="bg-white py-12 border-t border-border-subtle">
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="flex flex-col md:flex-row justify-between items-start gap-8">
           <div>
-            <div className="flex items-center gap-2 text-surface font-bold text-xl mb-2">
+            <div className="flex items-center gap-2 text-navy font-bold text-xl mb-2">
               <HeartPulse className="w-6 h-6 text-brand-default" />
               CareConnect
             </div>
-            <p className="text-surface/50 text-sm max-w-xs">
+            <p className="text-text-muted text-sm max-w-xs">
               Strengthening public health systems through connected technology.
             </p>
           </div>
@@ -189,22 +188,22 @@ function Footer() {
               },
             ].map(col => (
               <div key={col.title}>
-                <h4 className="text-surface/80 font-semibold mb-3">{col.title}</h4>
+                <h4 className="text-navy font-semibold mb-3">{col.title}</h4>
                 <ul className="space-y-2">
                   {col.links.map(l => (
-                    <li key={l.label}><Link to={l.to} className="text-surface/40 hover:text-surface/70 transition-colors">{l.label}</Link></li>
+                    <li key={l.label}><Link to={l.to} className="text-text-muted hover:text-navy transition-colors">{l.label}</Link></li>
                   ))}
                 </ul>
               </div>
             ))}
           </div>
         </div>
-        <div className="mt-10 pt-6 border-t border-surface/10 flex flex-col md:flex-row justify-between items-center gap-3">
-          <p className="text-surface/30 text-xs">&copy; {new Date().getFullYear()} CareConnect Platform. All rights reserved.</p>
-          <div className="flex gap-4 text-xs text-surface/30">
-            <a href="#" className="hover:text-surface/60">Privacy</a>
-            <a href="#" className="hover:text-surface/60">Terms</a>
-            <a href="#" className="hover:text-surface/60">Accessibility</a>
+        <div className="mt-10 pt-6 border-t border-border-subtle flex flex-col md:flex-row justify-between items-center gap-3">
+          <p className="text-text-muted/60 text-xs">&copy; {new Date().getFullYear()} CareConnect Platform. All rights reserved.</p>
+          <div className="flex gap-4 text-xs text-text-muted/60">
+            <a href="#" className="hover:text-navy">Privacy</a>
+            <a href="#" className="hover:text-navy">Terms</a>
+            <a href="#" className="hover:text-navy">Accessibility</a>
           </div>
         </div>
       </div>
@@ -219,20 +218,19 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Navbar */}
-      <header className="sticky top-0 z-50 bg-navy/95 backdrop-blur-sm border-b border-surface/10">
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-border-subtle">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between max-w-6xl">
-          <div className="flex items-center gap-2 text-surface font-bold text-xl">
+          <div className="flex items-center gap-2 text-navy font-bold text-xl">
             <HeartPulse className="w-7 h-7 text-brand-default" />
             CareConnect
           </div>
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-surface/60">
-
-            <a href="#how-it-works" className="hover:text-surface transition-colors">How it Works</a>
-            <a href="#services" className="hover:text-surface transition-colors">Services</a>
+          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-text-muted">
+            <a href="#how-it-works" className="hover:text-navy transition-colors">How it Works</a>
+            <a href="#services" className="hover:text-navy transition-colors">Services</a>
           </nav>
           <div className="flex items-center gap-2">
-            <LanguageSwitcher dark={true} />
-            <Button variant="ghost" className="text-surface/60 hover:text-surface hover:bg-surface/10" onClick={() => navigate('/login')}>Log In</Button>
+            <LanguageSwitcher dark={false} />
+            <Button variant="ghost" className="text-text-primary hover:bg-canvas" onClick={() => navigate('/login')}>Log In</Button>
             <Button className="bg-brand-default hover:bg-brand-hover/90 text-white" onClick={() => navigate('/register')}>Get Care</Button>
           </div>
         </div>

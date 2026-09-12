@@ -56,10 +56,7 @@ export default function App() {
           {/* Doctor */}
           <Route path="/doctor" element={<DoctorDashboard />} />
           <Route path="/doctor/queue" element={<DoctorQueue />} />
-          <Route path="/doctor/patients" element={<PatientProfile />} />
-          <Route path="/doctor/referrals" element={<DoctorWorklist type="referrals" />} />
-          <Route path="/doctor/diagnostics" element={<DoctorWorklist type="diagnostics" />} />
-          <Route path="/doctor/prescriptions" element={<DoctorWorklist type="prescriptions" />} />
+          <Route path="/doctor/referrals" element={<PatientProfile />} />
           <Route path="/doctor/follow-ups" element={<DoctorWorklist type="followUps" />} />
 
           {/* Admin */}

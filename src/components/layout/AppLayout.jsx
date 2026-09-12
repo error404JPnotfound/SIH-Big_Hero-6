@@ -23,10 +23,7 @@ const NAV_PATIENT = [
 const NAV_DOCTOR = [
   { href: '/doctor', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/doctor/queue', icon: Users, label: "Today's Queue" },
-  { href: '/doctor/patients', icon: ClipboardList, label: 'Patients' },
-  { href: '/doctor/referrals', icon: Stethoscope, label: 'Referrals' },
-  { href: '/doctor/diagnostics', icon: Activity, label: 'Diagnostics' },
-  { href: '/doctor/prescriptions', icon: Pill, label: 'Prescriptions' },
+  { href: '/doctor/referrals', icon: ClipboardList, label: 'Patients' },
   { href: '/doctor/follow-ups', icon: AlertCircle, label: 'Follow-ups' },
 ]
 
@@ -171,7 +168,7 @@ export default function AppLayout({ children, role }) {
     <div className="flex h-screen bg-canvas overflow-hidden">
       {/* Sign Out Confirmation Modal */}
       {showSignOutModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-navy/60 backdrop-blur-sm"
