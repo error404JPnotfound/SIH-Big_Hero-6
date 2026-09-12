@@ -65,6 +65,8 @@ export default function AppLayout({ children, role }) {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const [showSignOutModal, setShowSignOutModal] = useState(false)
+  const [doNotShowAgain, setDoNotShowAgain] = useState(false)
   const { pathname } = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const searchQuery = searchParams.get('q') || ''
@@ -88,6 +90,24 @@ export default function AppLayout({ children, role }) {
   const handleLogout = async () => {
     await logout()
     navigate('/')
+  }
+
+  const handleSignOutClick = () => {
+    const skip = localStorage.getItem('skipSignOutConfirm') === 'true'
+    if (skip) {
+      handleLogout()
+    } else {
+      setDoNotShowAgain(false)
+      setShowSignOutModal(true)
+    }
+  }
+
+  const handleConfirmSignOut = async () => {
+    if (doNotShowAgain) {
+      localStorage.setItem('skipSignOutConfirm', 'true')
+    }
+    setShowSignOutModal(false)
+    await handleLogout()
   }
 
   const Sidebar = () => (
@@ -136,7 +156,7 @@ export default function AppLayout({ children, role }) {
           <span>Close Menu</span>
         </button>
         <button
-          onClick={handleLogout}
+          onClick={handleSignOutClick}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-text-muted hover:bg-critical-bg hover:text-critical transition-colors"
         >
           <LogOut className="w-4 h-4 flex-shrink-0" />
@@ -148,6 +168,53 @@ export default function AppLayout({ children, role }) {
 
   return (
     <div className="flex h-screen bg-canvas overflow-hidden">
+      {/* Sign Out Confirmation Modal */}
+      {showSignOutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-navy/60 backdrop-blur-sm"
+            onClick={() => setShowSignOutModal(false)}
+          />
+          {/* Dialog */}
+          <div className="relative bg-surface-elevated rounded-2xl shadow-2xl border border-border-subtle w-full max-w-sm mx-4 p-6 flex flex-col gap-4">
+            {/* Icon */}
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-status-critical-bg mx-auto">
+              <LogOut className="w-6 h-6 text-status-critical" />
+            </div>
+            {/* Text */}
+            <div className="text-center">
+              <h2 className="text-lg font-bold text-text-primary mb-1">Sign out?</h2>
+              <p className="text-sm text-text-muted">Are you sure you want to sign out of CareConnect?</p>
+            </div>
+            {/* Do not show again */}
+            <label className="flex items-center gap-2.5 cursor-pointer select-none mx-auto">
+              <input
+                type="checkbox"
+                checked={doNotShowAgain}
+                onChange={e => setDoNotShowAgain(e.target.checked)}
+                className="w-4 h-4 rounded border-border-subtle accent-brand-default cursor-pointer"
+              />
+              <span className="text-xs text-text-muted">Do not show again</span>
+            </label>
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowSignOutModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-border-subtle text-sm font-medium text-text-primary hover:bg-canvas transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmSignOut}
+                className="flex-1 py-2.5 rounded-xl bg-status-critical text-white text-sm font-medium hover:bg-status-critical/90 transition-colors"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Desktop Sidebar */}
       <div className="hidden lg:flex">
         <Sidebar />
