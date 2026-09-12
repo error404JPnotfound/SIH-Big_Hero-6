@@ -12,9 +12,9 @@ const RISK_META = {
 }
 
 const STATUS_META = {
-  overdue: { label: 'Overdue', color: 'text-critical bg-critical-bg' },
-  due_soon: { label: 'Due Soon', color: 'text-warning bg-warning-bg' },
-  on_track: { label: 'On Track', color: 'text-success bg-success-bg' },
+  overdue: { label: 'Overdue', color: 'text-status-critical bg-status-critical-bg' },
+  due_soon: { label: 'Due Soon', color: 'text-status-warning bg-status-warning-bg' },
+  on_track: { label: 'On Track', color: 'text-status-success bg-status-success-bg' },
 }
 
 const CATEGORIES = ['All', 'Maternal Health', 'Child Health', 'Diabetes', 'Hypertension', 'TB', 'Elderly Care']
@@ -55,8 +55,8 @@ export default function HighRisk() {
       <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-navy">High-Risk Patients</h1>
-            <p className="text-muted text-sm">Monitor and coordinate care for vulnerable patients</p>
+            <h1 className="text-2xl font-bold text-text-primary">High-Risk Patients</h1>
+            <p className="text-text-muted text-sm">Monitor and coordinate care for vulnerable patients</p>
           </div>
           <Button variant="outline" size="sm"><Filter className="w-4 h-4" /> Filter</Button>
         </div>
@@ -64,23 +64,23 @@ export default function HighRisk() {
         {/* Category pills */}
         <div className="flex gap-2 flex-wrap">
           {CATEGORIES.map(c => (
-            <button key={c} className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${c === 'All' ? 'bg-navy text-surface border-navy' : 'border-border text-muted hover:border-teal hover:text-teal'}`}>{c}</button>
+            <button key={c} className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${c === 'All' ? 'bg-navy text-surface border-navy' : 'border-border-subtle text-text-muted hover:border-brand-default hover:text-brand-default'}`}>{c}</button>
           ))}
         </div>
 
         {/* Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Critical', value: highRisk.filter(p => p.risk === 'critical' || p.risk === 'high').length, icon: AlertCircle, color: 'text-critical bg-critical-bg' },
-            { label: 'Overdue', value: highRisk.filter(p => p.status === 'overdue').length, icon: AlertCircle, color: 'text-warning bg-warning-bg' },
-            { label: 'Due This Week', value: highRisk.filter(p => p.status === 'due_soon').length, icon: Heart, color: 'text-blue bg-blue-light' },
-            { label: 'Total Monitored', value: highRisk.length, icon: Users, color: 'text-navy bg-navy/5' },
+            { label: 'Critical', value: highRisk.filter(p => p.risk === 'critical' || p.risk === 'high').length, icon: AlertCircle, color: 'text-status-critical bg-status-critical-bg' },
+            { label: 'Overdue', value: highRisk.filter(p => p.status === 'overdue').length, icon: AlertCircle, color: 'text-status-warning bg-status-warning-bg' },
+            { label: 'Due This Week', value: highRisk.filter(p => p.status === 'due_soon').length, icon: Heart, color: 'text-brand-secondary bg-brand-secondary-light' },
+            { label: 'Total Monitored', value: highRisk.length, icon: Users, color: 'text-text-primary bg-navy/5' },
           ].map(s => (
-            <div key={s.label} className={`rounded-xl border border-border p-4 flex items-center gap-3 ${s.color.split(' ')[1]}`}>
+            <div key={s.label} className={`rounded-xl border border-border-subtle p-4 flex items-center gap-3 ${s.color.split(' ')[1]}`}>
               <s.icon className={`w-6 h-6 flex-shrink-0 ${s.color.split(' ')[0]}`} />
               <div>
                 <p className={`text-2xl font-bold ${s.color.split(' ')[0]}`}>{s.value}</p>
-                <p className="text-xs text-muted">{s.label}</p>
+                <p className="text-xs text-text-muted">{s.label}</p>
               </div>
             </div>
           ))}
@@ -92,19 +92,19 @@ export default function HighRisk() {
             const sm = STATUS_META[p.status]
             const rm = RISK_META[p.risk]
             return (
-              <div key={p.id} className={`bg-surface rounded-xl border p-4 hover:shadow-sm transition-shadow ${p.status === 'overdue' ? 'border-critical/30' : 'border-border'}`}>
+              <div key={p.id} className={`bg-surface-elevated rounded-xl border p-4 hover:shadow-sm transition-shadow ${p.status === 'overdue' ? 'border-status-critical/30' : 'border-border-subtle'}`}>
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-teal flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-brand-default flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                     {p.name[0]}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-navy text-sm">{p.name}</span>
-                      <span className="text-xs text-muted">{p.age} yrs</span>
+                      <span className="font-semibold text-text-primary text-sm">{p.name}</span>
+                      <span className="text-xs text-text-muted">{p.age} yrs</span>
                       <Badge variant={rm.variant} className="capitalize">{p.risk} risk</Badge>
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${sm.color}`}>{sm.label}</span>
                     </div>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted flex-wrap">
+                    <div className="flex items-center gap-3 mt-1 text-xs text-text-muted flex-wrap">
                       <span>Category: {p.category}</span>
                       <span>Last visit: {p.last_visit}</span>
                       <span>Due: {p.next_due}</span>
@@ -113,7 +113,7 @@ export default function HighRisk() {
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
                     <Button size="sm" variant="outline" className="text-xs">View</Button>
-                    <Button size="sm" className="bg-teal text-white text-xs">Schedule</Button>
+                    <Button size="sm" className="bg-brand-default text-white text-xs">Schedule</Button>
                   </div>
                 </div>
               </div>

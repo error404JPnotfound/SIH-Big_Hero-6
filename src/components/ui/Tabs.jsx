@@ -3,7 +3,7 @@ import { cn } from '../../lib/utils'
 
 export function Tabs({ tabs, activeTab, onChange, className }) {
   return (
-    <div className={cn('flex gap-1 border-b border-border', className)}>
+    <div className={cn('flex gap-1 border-b border-border-subtle', className)}>
       {tabs.map(tab => (
         <button
           key={tab.id}
@@ -11,8 +11,8 @@ export function Tabs({ tabs, activeTab, onChange, className }) {
           className={cn(
             'px-4 py-2.5 text-sm font-medium rounded-t-lg transition-all whitespace-nowrap',
             activeTab === tab.id
-              ? 'text-teal border-b-2 border-teal -mb-px bg-teal-light/30'
-              : 'text-muted hover:text-text hover:bg-bg'
+              ? 'text-brand-default border-b-2 border-brand-default -mb-px bg-subtle/30'
+              : 'text-text-muted hover:text-text hover:bg-bg'
           )}
         >
           {tab.label}

@@ -22,10 +22,10 @@ function PrescriptionForm({ onSave }) {
   return (
     <div className="space-y-4">
       {items.map((item, idx) => (
-        <div key={idx} className="bg-bg rounded-xl p-4 border border-border space-y-3">
+        <div key={idx} className="bg-canvas rounded-xl p-4 border border-border-subtle space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-navy">Medicine {idx + 1}</p>
-            {items.length > 1 && <button onClick={() => setItems(i => i.filter((_, i2) => i2 !== idx))} className="text-xs text-critical hover:underline">Remove</button>}
+            <p className="text-sm font-semibold text-text-primary">Medicine {idx + 1}</p>
+            {items.length > 1 && <button onClick={() => setItems(i => i.filter((_, i2) => i2 !== idx))} className="text-xs text-status-critical hover:underline">Remove</button>}
           </div>
           <Input label="Medicine Name" placeholder="e.g. Paracetamol 500mg" value={item.medicine} onChange={e => setField(idx, 'medicine', e.target.value)} />
           <div className="grid grid-cols-3 gap-3">
@@ -36,10 +36,10 @@ function PrescriptionForm({ onSave }) {
           <Input label="Instructions" placeholder="After food" value={item.instructions} onChange={e => setField(idx, 'instructions', e.target.value)} />
         </div>
       ))}
-      <button onClick={addItem} className="flex items-center gap-1.5 text-sm text-teal font-medium hover:underline">
+      <button onClick={addItem} className="flex items-center gap-1.5 text-sm text-brand-default font-medium hover:underline">
         <Plus className="w-4 h-4" /> Add medicine
       </button>
-      <Button className="w-full bg-teal text-white" size="lg" onClick={() => onSave(items)}>
+      <Button className="w-full bg-brand-default text-white" size="lg" onClick={() => onSave(items)}>
         Save & Send Prescription
       </Button>
     </div>
@@ -54,11 +54,11 @@ function ConsultationModal({ patient, open, onClose }) {
 
   return (
     <Modal open={open} onClose={onClose} title={`Consultation — ${patient.name}`} size="xl">
-      <div className="flex items-center gap-3 mb-5 p-3 bg-bg rounded-xl border border-border">
-        <div className="w-10 h-10 rounded-full bg-teal flex items-center justify-center text-white font-bold">{patient.name[0]}</div>
+      <div className="flex items-center gap-3 mb-5 p-3 bg-canvas rounded-xl border border-border-subtle">
+        <div className="w-10 h-10 rounded-full bg-brand-default flex items-center justify-center text-white font-bold">{patient.name[0]}</div>
         <div>
-          <p className="font-semibold text-navy text-sm">{patient.name} · {patient.age} yrs</p>
-          <p className="text-xs text-muted">{patient.reason}</p>
+          <p className="font-semibold text-text-primary text-sm">{patient.name} · {patient.age} yrs</p>
+          <p className="text-xs text-text-muted">{patient.reason}</p>
         </div>
         <Badge variant={PRIORITY_MAP[patient.priority].variant} className="ml-auto">{PRIORITY_MAP[patient.priority].label}</Badge>
       </div>
@@ -81,7 +81,7 @@ function ConsultationModal({ patient, open, onClose }) {
           <Textarea label="Clinical Findings" placeholder="Physical examination findings, observations..." rows={4} />
           <Textarea label="Assessment / Diagnosis" placeholder="Clinical assessment and diagnosis..." rows={3} />
           <Textarea label="Plan" placeholder="Treatment plan, follow-up instructions..." rows={3} />
-          <Button className="bg-teal text-white w-full">Save Notes</Button>
+          <Button className="bg-brand-default text-white w-full">Save Notes</Button>
         </div>
       )}
 
@@ -96,14 +96,14 @@ function ConsultationModal({ patient, open, onClose }) {
             { label: 'Weight', placeholder: '65 kg', id: 'wt' },
           ].map(v => <Input key={v.id} label={v.label} placeholder={v.placeholder} />)}
           <div className="col-span-2">
-            <Button className="bg-teal text-white w-full">Save Vitals</Button>
+            <Button className="bg-brand-default text-white w-full">Save Vitals</Button>
           </div>
         </div>
       )}
 
       {tab === 'prescribe' && (
         prescribed
-          ? <div className="text-center py-8 text-success">
+          ? <div className="text-center py-8 text-status-success">
               <CheckCircle2 className="w-12 h-12 mx-auto mb-3" />
               <p className="font-semibold">Prescription saved & sent to patient.</p>
             </div>
@@ -131,7 +131,7 @@ function ConsultationModal({ patient, open, onClose }) {
             <option>Urgent</option>
             <option>Emergency</option>
           </Select>
-          <Button className="bg-teal text-white w-full">Create Referral</Button>
+          <Button className="bg-brand-default text-white w-full">Create Referral</Button>
         </div>
       )}
     </Modal>
@@ -152,25 +152,25 @@ export default function DoctorQueue() {
       <div className="p-4 md:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-navy">Today's Queue</h1>
-            <p className="text-muted text-sm">PHC Khandwa · {MOCK_DOCTOR_QUEUE.length} patients waiting</p>
+            <h1 className="text-2xl font-bold text-text-primary">Today's Queue</h1>
+            <p className="text-text-muted text-sm">PHC Khandwa · {MOCK_DOCTOR_QUEUE.length} patients waiting</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm">Pause Queue</Button>
-            <Button className="bg-teal text-white" size="sm">Next Patient</Button>
+            <Button className="bg-brand-default text-white" size="sm">Next Patient</Button>
           </div>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: 'Waiting', value: MOCK_DOCTOR_QUEUE.length, color: 'text-warning' },
-            { label: 'Completed', value: 14, color: 'text-success' },
-            { label: 'High Priority', value: MOCK_DOCTOR_QUEUE.filter(p => p.priority === 'high').length, color: 'text-critical' },
+            { label: 'Waiting', value: MOCK_DOCTOR_QUEUE.length, color: 'text-status-warning' },
+            { label: 'Completed', value: 14, color: 'text-status-success' },
+            { label: 'High Priority', value: MOCK_DOCTOR_QUEUE.filter(p => p.priority === 'high').length, color: 'text-status-critical' },
           ].map(s => (
-            <div key={s.label} className="bg-surface rounded-xl border border-border p-4 text-center">
+            <div key={s.label} className="bg-surface-elevated rounded-xl border border-border-subtle p-4 text-center">
               <div className={`text-3xl font-bold ${s.color}`}>{s.value}</div>
-              <div className="text-xs text-muted mt-1">{s.label}</div>
+              <div className="text-xs text-text-muted mt-1">{s.label}</div>
             </div>
           ))}
         </div>
@@ -178,24 +178,24 @@ export default function DoctorQueue() {
         {/* Queue cards */}
         <div className="space-y-3">
           {MOCK_DOCTOR_QUEUE.map((patient, idx) => (
-            <div key={patient.id} className={`bg-surface rounded-xl border p-4 hover:shadow-sm transition-shadow ${patient.priority === 'high' ? 'border-critical/30' : 'border-border'}`}>
+            <div key={patient.id} className={`bg-surface-elevated rounded-xl border p-4 hover:shadow-sm transition-shadow ${patient.priority === 'high' ? 'border-status-critical/30' : 'border-border-subtle'}`}>
               <div className="flex items-center gap-4">
                 {/* Queue number */}
                 <div className="w-14 h-14 rounded-xl bg-navy flex flex-col items-center justify-center flex-shrink-0">
                   <span className="text-xs text-surface/50">No.</span>
-                  <span className="font-bold text-teal font-mono">{patient.queue_no}</span>
+                  <span className="font-bold text-brand-default font-mono">{patient.queue_no}</span>
                 </div>
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-navy">{patient.name}</span>
-                    <span className="text-sm text-muted">{patient.age} yrs</span>
+                    <span className="font-semibold text-text-primary">{patient.name}</span>
+                    <span className="text-sm text-text-muted">{patient.age} yrs</span>
                     <Badge variant={PRIORITY_MAP[patient.priority].variant}>{PRIORITY_MAP[patient.priority].label}</Badge>
-                    {patient.priority === 'high' && <AlertCircle className="w-4 h-4 text-critical" />}
+                    {patient.priority === 'high' && <AlertCircle className="w-4 h-4 text-status-critical" />}
                   </div>
-                  <p className="text-sm text-muted mt-0.5">{patient.reason}</p>
-                  <div className="flex items-center gap-3 mt-1.5 text-xs text-muted">
+                  <p className="text-sm text-text-muted mt-0.5">{patient.reason}</p>
+                  <div className="flex items-center gap-3 mt-1.5 text-xs text-text-muted">
                     <span className="flex items-center gap-1"><Clock className="w-3 h-3" />Waiting {patient.waiting_since}</span>
                     <span>Appt: {patient.appointment}</span>
                   </div>
@@ -204,7 +204,7 @@ export default function DoctorQueue() {
                 {/* Actions */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <Button size="sm" variant="ghost">Records</Button>
-                  <Button size="sm" className="bg-teal text-white" onClick={() => handleStart(patient)}>
+                  <Button size="sm" className="bg-brand-default text-white" onClick={() => handleStart(patient)}>
                     <Play className="w-3.5 h-3.5" /> Consult
                   </Button>
                 </div>

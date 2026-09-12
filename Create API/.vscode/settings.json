@@ -1,0 +1,3 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}\\medical-triage-api\\venv\\Scripts\\python.exe"
+}

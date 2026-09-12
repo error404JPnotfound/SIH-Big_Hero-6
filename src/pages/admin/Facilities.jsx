@@ -19,39 +19,39 @@ function FacilityCard({ fac }) {
   const loadColor = load > 85 ? 'critical' : load > 65 ? 'warning' : 'success'
 
   return (
-    <div className="bg-surface rounded-2xl border border-border p-5 hover:shadow-md transition-shadow">
+    <div className="bg-surface-elevated rounded-2xl border border-border-subtle p-5 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-2 mb-4">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-navy/10 flex items-center justify-center flex-shrink-0">
-            <Building2 className="w-5 h-5 text-navy" />
+            <Building2 className="w-5 h-5 text-text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-navy text-sm">{fac.name}</h3>
-            <p className="text-xs text-muted">{fac.type}</p>
+            <h3 className="font-semibold text-text-primary text-sm">{fac.name}</h3>
+            <p className="text-xs text-text-muted">{fac.type}</p>
           </div>
         </div>
         <Badge variant={meta.variant}>{meta.label}</Badge>
       </div>
 
-      <div className="flex items-center gap-1 text-xs text-muted mb-4">
+      <div className="flex items-center gap-1 text-xs text-text-muted mb-4">
         <MapPin className="w-3 h-3" />{fac.location}
       </div>
 
       <div className="grid grid-cols-3 gap-3 text-center mb-4">
-        <div className="bg-bg rounded-lg py-2">
-          <div className="flex items-center justify-center gap-1 mb-1"><Stethoscope className="w-3 h-3 text-teal" /></div>
-          <p className="text-base font-bold text-navy">{fac.doctors}</p>
-          <p className="text-xs text-muted">Doctors</p>
+        <div className="bg-canvas rounded-lg py-2">
+          <div className="flex items-center justify-center gap-1 mb-1"><Stethoscope className="w-3 h-3 text-brand-default" /></div>
+          <p className="text-base font-bold text-text-primary">{fac.doctors}</p>
+          <p className="text-xs text-text-muted">Doctors</p>
         </div>
-        <div className="bg-bg rounded-lg py-2">
-          <div className="flex items-center justify-center gap-1 mb-1"><Users className="w-3 h-3 text-blue" /></div>
-          <p className="text-base font-bold text-navy">{fac.patients_today}</p>
-          <p className="text-xs text-muted">Today</p>
+        <div className="bg-canvas rounded-lg py-2">
+          <div className="flex items-center justify-center gap-1 mb-1"><Users className="w-3 h-3 text-brand-secondary" /></div>
+          <p className="text-base font-bold text-text-primary">{fac.patients_today}</p>
+          <p className="text-xs text-text-muted">Today</p>
         </div>
-        <div className="bg-bg rounded-lg py-2">
-          <div className="flex items-center justify-center gap-1 mb-1"><Bed className="w-3 h-3 text-success" /></div>
-          <p className="text-base font-bold text-navy">{fac.beds}</p>
-          <p className="text-xs text-muted">Beds</p>
+        <div className="bg-canvas rounded-lg py-2">
+          <div className="flex items-center justify-center gap-1 mb-1"><Bed className="w-3 h-3 text-status-success" /></div>
+          <p className="text-base font-bold text-text-primary">{fac.beds}</p>
+          <p className="text-xs text-text-muted">Beds</p>
         </div>
       </div>
 
@@ -59,7 +59,7 @@ function FacilityCard({ fac }) {
 
       <div className="flex gap-2 mt-4">
         <Button variant="outline" size="sm" className="flex-1">Details</Button>
-        <Button className="flex-1 bg-teal text-white" size="sm">Manage</Button>
+        <Button className="flex-1 bg-brand-default text-white" size="sm">Manage</Button>
       </div>
     </div>
   )
@@ -88,23 +88,23 @@ export default function Facilities() {
       <div className="p-4 md:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-navy">Facility Management</h1>
-            <p className="text-muted text-sm">{facilities.length} facilities across Khandwa district</p>
+            <h1 className="text-2xl font-bold text-text-primary">Facility Management</h1>
+            <p className="text-text-muted text-sm">{facilities.length} facilities across Khandwa district</p>
           </div>
-          <Button className="bg-teal text-white"><Plus className="w-4 h-4" /> Add Facility</Button>
+          <Button className="bg-brand-default text-white"><Plus className="w-4 h-4" /> Add Facility</Button>
         </div>
 
         {/* Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total Facilities', value: facilities.length, color: 'text-navy' },
-            { label: 'Operational', value: facilities.filter(f => f.status === 'operational').length, color: 'text-success' },
-            { label: 'Busy/Limited', value: facilities.filter(f => ['busy','limited_capacity'].includes(f.status)).length, color: 'text-warning' },
-            { label: 'Total Doctors', value: facilities.reduce((s, f) => s + f.doctors, 0), color: 'text-teal' },
+            { label: 'Total Facilities', value: facilities.length, color: 'text-text-primary' },
+            { label: 'Operational', value: facilities.filter(f => f.status === 'operational').length, color: 'text-status-success' },
+            { label: 'Busy/Limited', value: facilities.filter(f => ['busy','limited_capacity'].includes(f.status)).length, color: 'text-status-warning' },
+            { label: 'Total Doctors', value: facilities.reduce((s, f) => s + f.doctors, 0), color: 'text-brand-default' },
           ].map(s => (
-            <div key={s.label} className="bg-surface rounded-xl border border-border p-4 text-center">
+            <div key={s.label} className="bg-surface-elevated rounded-xl border border-border-subtle p-4 text-center">
               <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-muted mt-1">{s.label}</p>
+              <p className="text-xs text-text-muted mt-1">{s.label}</p>
             </div>
           ))}
         </div>

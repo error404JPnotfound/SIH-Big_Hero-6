@@ -13,10 +13,10 @@ const PATIENT = {
 }
 
 const TIMELINE = [
-  { title: 'Consultation — Hypertension Follow-up', subtitle: 'Dr. Arjun Mehta · PHC Khandwa', date: 'Sept 10, 2026', color: 'bg-teal border-teal' },
-  { title: 'BP: 148/94 — Elevated', subtitle: 'Amlodipine dosage reviewed', date: 'Sept 10, 2026', color: 'bg-critical border-critical' },
-  { title: 'HbA1c Requested', subtitle: 'Pre-diabetes monitoring', date: 'Sept 5, 2026', color: 'bg-blue border-blue' },
-  { title: 'First Hypertension Diagnosis', subtitle: 'BP: 155/98', date: 'Aug 20, 2026', color: 'bg-critical border-critical' },
+  { title: 'Consultation — Hypertension Follow-up', subtitle: 'Dr. Arjun Mehta · PHC Khandwa', date: 'Sept 10, 2026', color: 'bg-brand-default border-brand-default' },
+  { title: 'BP: 148/94 — Elevated', subtitle: 'Amlodipine dosage reviewed', date: 'Sept 10, 2026', color: 'bg-status-critical border-status-critical' },
+  { title: 'HbA1c Requested', subtitle: 'Pre-diabetes monitoring', date: 'Sept 5, 2026', color: 'bg-brand-secondary border-blue' },
+  { title: 'First Hypertension Diagnosis', subtitle: 'BP: 155/98', date: 'Aug 20, 2026', color: 'bg-status-critical border-status-critical' },
 ]
 
 export default function PatientProfile() {
@@ -26,7 +26,7 @@ export default function PatientProfile() {
       <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
         {/* Patient header */}
         <div className="bg-navy rounded-2xl p-6 flex items-start gap-5">
-          <div className="w-16 h-16 rounded-2xl bg-teal flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
+          <div className="w-16 h-16 rounded-2xl bg-brand-default flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
             {PATIENT.name[0]}
           </div>
           <div className="flex-1">
@@ -43,22 +43,22 @@ export default function PatientProfile() {
           </div>
           <div className="flex gap-2 flex-shrink-0">
             <Button size="sm" variant="outline" className="border-surface/20 text-surface hover:bg-surface/10">Edit</Button>
-            <Button size="sm" className="bg-teal text-white">Start Consultation</Button>
+            <Button size="sm" className="bg-brand-default text-white">Start Consultation</Button>
           </div>
         </div>
 
         {/* Vitals */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { icon: Heart, label: 'Blood Pressure', value: '148/94', unit: 'mmHg', color: 'text-critical', bg: 'bg-critical-bg' },
-            { icon: Droplets, label: 'Blood Sugar', value: '118', unit: 'mg/dL', color: 'text-warning', bg: 'bg-warning-bg' },
-            { icon: Weight, label: 'Weight', value: '78', unit: 'kg', color: 'text-blue', bg: 'bg-blue-light' },
-            { icon: TrendingUp, label: 'Heart Rate', value: '82', unit: 'bpm', color: 'text-success', bg: 'bg-success-bg' },
+            { icon: Heart, label: 'Blood Pressure', value: '148/94', unit: 'mmHg', color: 'text-status-critical', bg: 'bg-status-critical-bg' },
+            { icon: Droplets, label: 'Blood Sugar', value: '118', unit: 'mg/dL', color: 'text-status-warning', bg: 'bg-status-warning-bg' },
+            { icon: Weight, label: 'Weight', value: '78', unit: 'kg', color: 'text-brand-secondary', bg: 'bg-brand-secondary-light' },
+            { icon: TrendingUp, label: 'Heart Rate', value: '82', unit: 'bpm', color: 'text-status-success', bg: 'bg-status-success-bg' },
           ].map(v => (
-            <div key={v.label} className={`rounded-xl border border-border p-4 ${v.bg}`}>
+            <div key={v.label} className={`rounded-xl border border-border-subtle p-4 ${v.bg}`}>
               <v.icon className={`w-5 h-5 mb-2 ${v.color}`} />
-              <p className="text-xs text-muted">{v.label}</p>
-              <p className={`text-xl font-bold ${v.color}`}>{v.value}<span className="text-xs font-normal ml-1 text-muted">{v.unit}</span></p>
+              <p className="text-xs text-text-muted">{v.label}</p>
+              <p className={`text-xl font-bold ${v.color}`}>{v.value}<span className="text-xs font-normal ml-1 text-text-muted">{v.unit}</span></p>
             </div>
           ))}
         </div>
@@ -77,17 +77,17 @@ export default function PatientProfile() {
 
         {tab === 'overview' && (
           <div className="grid md:grid-cols-2 gap-4">
-            <div className="bg-surface rounded-xl border border-border p-5">
-              <h3 className="font-semibold text-navy mb-3">Active Medications</h3>
+            <div className="bg-surface-elevated rounded-xl border border-border-subtle p-5">
+              <h3 className="font-semibold text-text-primary mb-3">Active Medications</h3>
               {PATIENT.medications.map(m => (
-                <div key={m.name} className="flex justify-between text-sm py-2 border-b border-border last:border-0">
-                  <span className="font-medium text-navy">{m.name}</span>
-                  <span className="text-muted">{m.dosage}</span>
+                <div key={m.name} className="flex justify-between text-sm py-2 border-b border-border-subtle last:border-0">
+                  <span className="font-medium text-text-primary">{m.name}</span>
+                  <span className="text-text-muted">{m.dosage}</span>
                 </div>
               ))}
             </div>
-            <div className="bg-surface rounded-xl border border-border p-5">
-              <h3 className="font-semibold text-navy mb-3">Quick Actions</h3>
+            <div className="bg-surface-elevated rounded-xl border border-border-subtle p-5">
+              <h3 className="font-semibold text-text-primary mb-3">Quick Actions</h3>
               <div className="space-y-2">
                 <Button variant="outline" size="sm" className="w-full justify-start">New Prescription</Button>
                 <Button variant="outline" size="sm" className="w-full justify-start">Request Diagnostic</Button>
@@ -99,7 +99,7 @@ export default function PatientProfile() {
         )}
 
         {tab === 'timeline' && (
-          <div className="bg-surface rounded-xl border border-border p-6">
+          <div className="bg-surface-elevated rounded-xl border border-border-subtle p-6">
             <Timeline items={TIMELINE} />
           </div>
         )}
@@ -107,10 +107,10 @@ export default function PatientProfile() {
         {tab === 'referrals' && (
           <div className="space-y-3">
             {MOCK_REFERRALS.map(r => (
-              <div key={r.id} className="bg-surface rounded-xl border border-border p-4 flex justify-between items-center">
+              <div key={r.id} className="bg-surface-elevated rounded-xl border border-border-subtle p-4 flex justify-between items-center">
                 <div>
-                  <p className="font-medium text-navy text-sm">{r.dept} — {r.to}</p>
-                  <p className="text-xs text-muted">{r.reason} · {r.date}</p>
+                  <p className="font-medium text-text-primary text-sm">{r.dept} — {r.to}</p>
+                  <p className="text-xs text-text-muted">{r.reason} · {r.date}</p>
                 </div>
                 <Badge variant={r.status === 'completed' ? 'outline' : 'success'}>{r.status}</Badge>
               </div>
@@ -121,10 +121,10 @@ export default function PatientProfile() {
         {tab === 'diagnostics' && (
           <div className="space-y-3">
             {MOCK_DIAGNOSTICS.map(dx => (
-              <div key={dx.id} className="bg-surface rounded-xl border border-border p-4 flex justify-between items-center">
+              <div key={dx.id} className="bg-surface-elevated rounded-xl border border-border-subtle p-4 flex justify-between items-center">
                 <div>
-                  <p className="font-medium text-navy text-sm">{dx.name}</p>
-                  <p className="text-xs text-muted">{dx.facility} · {dx.date}</p>
+                  <p className="font-medium text-text-primary text-sm">{dx.name}</p>
+                  <p className="text-xs text-text-muted">{dx.facility} · {dx.date}</p>
                 </div>
                 <Badge variant={dx.status === 'result_ready' ? 'success' : 'warning'}>{dx.status.replace(/_/g,' ')}</Badge>
               </div>

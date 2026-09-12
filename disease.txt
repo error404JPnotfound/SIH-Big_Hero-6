@@ -1,0 +1,107 @@
+EMERGENCY DISEASES / SYMPTOMS:
+- Severe Chest Pain
+- Chest Pressure
+- Chest Tightness
+- Chest Pain with Sweating
+- Chest Pain with Breathlessness
+- Chest Pain Spreading to Arm
+- Chest Pain Spreading to Jaw
+- Severe Shortness of Breath
+- Difficulty Breathing
+- Unable to Breathe Normally
+- Blue Lips
+- Severe Wheezing
+- Severe Asthma Attack
+- Unable to Speak Due to Breathing Difficulty
+- Sudden Weakness on One Side
+- Facial Drooping
+- Sudden Difficulty Speaking
+- Sudden Confusion
+- Sudden Vision Loss
+- Sudden Severe Headache
+- Loss of Consciousness
+- Unconsciousness
+- Unresponsive
+- Fainting with Serious Symptoms
+- Seizure
+- Repeated Seizures
+- Prolonged Seizure
+- Severe Confusion
+- Severe Bleeding
+- Uncontrolled Bleeding
+- Bleeding That Will Not Stop
+- Vomiting Blood
+- Coughing Blood
+- Blood in Stool with Severe Weakness
+- Severe Allergic Reaction
+- Anaphylaxis
+- Throat Swelling
+- Tongue Swelling with Breathing Problem
+- Severe Injury
+- Major Trauma
+- Major Road Accident
+- Severe Head Injury
+- Loss of Consciousness After Injury
+- Severe Burn
+- Large Area Burn
+- Airway Burn
+- Electric Shock
+- Suspected Poisoning
+- Drug Overdose
+- Chemical Exposure with Breathing Problem
+- Severe Abdominal Pain
+- Sudden Severe Abdominal Pain
+- Abdominal Pain with Collapse
+- Severe Vomiting with Dehydration
+- Severe Diarrhea with Dehydration
+- Severe Dehydration
+- Collapse
+- Signs of Shock
+- Severe Weakness with Collapse
+- High Fever with Confusion
+- High Fever with Seizure
+- Severe Infection with Collapse
+- Severe Infection with Confusion
+- Severe Bleeding During Pregnancy
+- Severe Postpartum Bleeding
+- Seizure During Pregnancy
+- Loss of Consciousness During Pregnancy
+- Severe Breathing Problem in Child
+- Unconsciousness in Child
+- Seizure in Child
+- Blue Lips in Child
+
+NON-URGENT DISEASES / SYMPTOMS:
+- Mild Headache
+- Moderate Headache
+- Fever
+- Mild Cough
+- Sore Throat
+- Runny Nose
+- Nasal Congestion
+- Body Pain
+- Fatigue
+- Mild Dizziness
+- Nausea
+- Mild Vomiting
+- Mild Diarrhea
+- Stomach Pain
+- Mild Abdominal Pain
+- Back Pain
+- Joint Pain
+- Muscle Pain
+- Skin Rash
+- Itchy Skin
+- Mild Allergic Reaction
+- Ear Pain
+- Toothache
+- Eye Pain
+- Red Eye
+- Constipation
+- Loss of Appetite
+- Frequent Urination
+- Painful Urination
+- Mild Back Pain
+- Mild Joint Pain
+- Mild Fever
+- Common Cold Symptoms

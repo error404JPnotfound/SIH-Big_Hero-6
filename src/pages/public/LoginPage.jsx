@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
-import { HeartPulse, Phone, Mail, ArrowLeft, Eye, EyeOff, ShieldCheck, ChevronRight } from 'lucide-react'
+import { HeartPulse, Phone, Mail, ArrowLeft, Eye, EyeOff, ShieldCheck, ChevronRight, AlertCircle } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 const ROLES = [
@@ -56,7 +56,8 @@ export default function LoginPage() {
       setInfo(`OTP sent to +91 ${phone.slice(-10)}`)
       setStep('otp')
     } catch (err) {
-      setError(err.message || 'Failed to send OTP. Please try again.')
+      console.error(err)
+      setError('Unable to send your verification code right now. Please check your phone number and try again.')
     } finally {
       setLoading(false)
     }
@@ -72,7 +73,8 @@ export default function LoginPage() {
       await signInWithEmail(email, password)
       navigate(`/${selectedRole}`)
     } catch (err) {
-      setError(err.message || 'Login failed. Check your credentials.')
+      console.error(err)
+      setError('We couldn’t sign you in with those details. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -94,7 +96,8 @@ export default function LoginPage() {
         await verifyOtp(formattedPhone, next.join(''))
         navigate(`/${selectedRole}`)
       } catch (err) {
-        setError('Invalid OTP. Please try again.')
+        console.error(err)
+        setError('That code didn’t work. Please check and try again.')
         setOtp(['','','','','',''])
         document.getElementById('otp-0')?.focus()
       } finally {
@@ -114,19 +117,19 @@ export default function LoginPage() {
   const currentRole = ROLES.find(r => r.id === selectedRole)
 
   return (
-    <div className="min-h-screen bg-bg flex">
+    <div className="min-h-screen bg-canvas flex">
 
       {/* Left branding panel */}
-      <div className="hidden lg:flex w-1/2 gradient-navy flex-col justify-between p-12">
-        <div className="flex items-center gap-2 text-surface font-bold text-2xl">
-          <HeartPulse className="w-8 h-8 text-teal" />
+      <div className="hidden lg:flex w-1/2 bg-subtle/40 border-r border-border-subtle flex-col justify-between p-12">
+        <div className="flex items-center gap-2 text-text-primary font-bold text-2xl">
+          <HeartPulse className="w-8 h-8 text-brand-default" />
           CareConnect
         </div>
         <div>
-          <h2 className="text-4xl font-bold text-surface leading-tight mb-4">
+          <h2 className="text-4xl font-bold text-text-primary leading-tight mb-4">
             One connected healthcare journey — from the local health centre to the specialist.
           </h2>
-          <p className="text-surface/60 text-lg mb-8">
+          <p className="text-text-muted text-lg mb-8">
             Trusted by thousands of patients, doctors, and healthcare workers across rural India.
           </p>
           <div className="space-y-3">
@@ -135,14 +138,14 @@ export default function LoginPage() {
               'Real-time appointment & queue management',
               'Works offline — syncs when connection returns',
             ].map(f => (
-              <div key={f} className="flex items-center gap-2 text-surface/80 text-sm">
-                <ShieldCheck className="w-4 h-4 text-teal flex-shrink-0" />
+              <div key={f} className="flex items-center gap-2 text-text-primary/80 text-sm">
+                <ShieldCheck className="w-4 h-4 text-brand-default flex-shrink-0" />
                 {f}
               </div>
             ))}
           </div>
         </div>
-        <p className="text-surface/30 text-xs">
+        <p className="text-text-muted text-xs">
           &copy; {new Date().getFullYear()} CareConnect. Strengthening public health systems.
         </p>
       </div>
@@ -152,8 +155,8 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
 
           {/* Mobile logo */}
-          <div className="flex items-center gap-2 lg:hidden text-navy font-bold text-xl mb-8">
-            <HeartPulse className="w-6 h-6 text-teal" />
+          <div className="flex items-center gap-2 lg:hidden text-text-primary font-bold text-xl mb-8">
+            <HeartPulse className="w-6 h-6 text-brand-default" />
             CareConnect
           </div>
 
@@ -161,7 +164,7 @@ export default function LoginPage() {
           {step !== 'role' && (
             <button
               onClick={() => { setStep(step === 'otp' ? 'login' : 'role'); clearFeedback(); setOtp(['','','','','','']) }}
-              className="flex items-center gap-1.5 text-sm text-muted hover:text-text mb-6 transition-colors"
+              className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text mb-6 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
@@ -170,19 +173,19 @@ export default function LoginPage() {
           {/* ── STEP 1: Role Selection ── */}
           {step === 'role' && (
             <>
-              <h1 className="text-2xl font-bold text-navy mb-1">Welcome to CareConnect</h1>
-              <p className="text-muted text-sm mb-8">Choose how you're accessing the platform today.</p>
+              <h1 className="text-2xl font-bold text-text-primary mb-1">Welcome to CareConnect</h1>
+              <p className="text-text-muted text-sm mb-8">Choose how you're accessing the platform today.</p>
               <div className="space-y-3">
                 {ROLES.map(role => (
                   <button
                     key={role.id}
                     onClick={() => handleRoleSelect(role.id)}
-                    className="w-full flex items-center gap-4 p-4 bg-surface rounded-xl border border-border hover:border-teal hover:shadow-sm text-left transition-all group"
+                    className="w-full flex items-center gap-4 p-4 bg-surface-elevated rounded-xl border border-border-subtle hover:border-brand-default hover:shadow-sm text-left transition-all group"
                   >
                     <span className="text-3xl">{role.emoji}</span>
                     <div className="flex-1">
-                      <p className="font-semibold text-navy">{role.label}</p>
-                      <p className="text-xs text-muted">{role.desc}</p>
+                      <p className="font-semibold text-text-primary">{role.label}</p>
+                      <p className="text-xs text-text-muted">{role.desc}</p>
                     </div>
                     <ChevronRight className="w-5 h-5 text-border group-hover:text-teal transition-colors" />
                   </button>
@@ -196,18 +199,18 @@ export default function LoginPage() {
             <>
               <div className="mb-6">
                 <span className="text-3xl">{currentRole.emoji}</span>
-                <h1 className="text-2xl font-bold text-navy mt-2">
+                <h1 className="text-2xl font-bold text-text-primary mt-2">
                   Sign in as {currentRole.label}
                 </h1>
-                <p className="text-sm text-muted">Use your registered phone number or email address.</p>
+                <p className="text-sm text-text-muted">Use your registered phone number or email address.</p>
               </div>
 
               {/* Tab switcher */}
-              <div className="flex bg-bg rounded-lg p-1 mb-6 border border-border">
+              <div className="flex bg-canvas rounded-lg p-1 mb-6 border border-border-subtle">
                 <button
                   onClick={() => { setTab('phone'); clearFeedback() }}
                   className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-md transition-all',
-                    tab === 'phone' ? 'bg-surface shadow-sm text-navy' : 'text-muted hover:text-text'
+                    tab === 'phone' ? 'bg-surface-elevated shadow-sm text-brand-default border border-brand-default/20' : 'text-text-muted hover:text-text border border-transparent'
                   )}
                 >
                   <Phone className="w-3.5 h-3.5" /> Phone / OTP
@@ -215,7 +218,7 @@ export default function LoginPage() {
                 <button
                   onClick={() => { setTab('email'); clearFeedback() }}
                   className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-md transition-all',
-                    tab === 'email' ? 'bg-surface shadow-sm text-navy' : 'text-muted hover:text-text'
+                    tab === 'email' ? 'bg-surface-elevated shadow-sm text-brand-default border border-brand-default/20' : 'text-text-muted hover:text-text border border-transparent'
                   )}
                 >
                   <Mail className="w-3.5 h-3.5" /> Email
@@ -226,20 +229,25 @@ export default function LoginPage() {
               {tab === 'phone' && (
                 <form onSubmit={handleSendOtp} className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-text block mb-1.5">Phone Number</label>
+                    <label className="text-sm font-medium text-text-primary block mb-1.5">Phone Number</label>
                     <div className="flex gap-2">
-                      <span className="flex items-center px-3 bg-bg border border-border rounded-lg text-sm text-muted font-medium">+91</span>
+                      <span className="flex items-center px-3 bg-canvas border border-border-subtle rounded-lg text-sm text-text-muted font-medium">+91</span>
                       <input
                         type="tel" inputMode="numeric" maxLength={10}
                         placeholder="98765 43210"
                         value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ''))}
-                        className="flex-1 h-10 px-3 rounded-lg border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-teal"
+                        className="flex-1 h-10 px-3 rounded-lg border border-border-subtle bg-surface-elevated text-sm focus:outline-none focus:ring-2 focus:ring-brand-default"
                       />
                     </div>
                   </div>
-                  {error && <p className="text-xs text-critical bg-critical-bg px-3 py-2 rounded-lg">{error}</p>}
-                  {info  && <p className="text-xs text-success bg-success-bg px-3 py-2 rounded-lg">{info}</p>}
-                  <Button type="submit" className="w-full bg-teal text-white" size="lg" loading={loading}>
+                  {error && (
+                    <div className="flex items-start gap-2 bg-status-critical-bg/50 border border-status-critical/20 px-3 py-2 rounded-lg text-status-critical">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs">{error}</p>
+                    </div>
+                  )}
+                  {info  && <p className="text-xs text-status-success bg-status-success-bg px-3 py-2 rounded-lg">{info}</p>}
+                  <Button type="submit" className="w-full bg-brand-default text-white" size="lg" loading={loading}>
                     Send OTP
                   </Button>
                 </form>
@@ -254,28 +262,35 @@ export default function LoginPage() {
                     <Input label="Password" id="password" type={showPass ? 'text' : 'password'}
                       placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
                     <button type="button" onClick={() => setShowPass(s => !s)}
-                      className="absolute right-3 top-8 text-muted hover:text-text">
+                      className="absolute right-3 top-8 text-text-muted hover:text-text">
                       {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                   <div className="text-right">
-                    <a href="#" className="text-xs text-teal hover:underline">Forgot password?</a>
+                    <a href="#" className="text-xs text-brand-default hover:underline">Forgot password?</a>
                   </div>
-                  {error && <p className="text-xs text-critical bg-critical-bg px-3 py-2 rounded-lg">{error}</p>}
-                  <Button type="submit" className="w-full bg-teal text-white" size="lg" loading={loading}>
+                  {error && (
+                    <div className="flex items-start gap-2 bg-status-critical-bg/50 border border-status-critical/20 px-3 py-2 rounded-lg text-status-critical">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs">{error}</p>
+                    </div>
+                  )}
+                  <Button type="submit" className="w-full bg-brand-default text-white" size="lg" loading={loading}>
                     Sign In
                   </Button>
                 </form>
               )}
 
               {/* Demo shortcut */}
-              <div className="mt-5 p-4 bg-teal-light rounded-xl border border-teal/20">
-                <p className="text-xs font-semibold text-teal mb-1">✨ Quick Demo Access</p>
-                <p className="text-xs text-muted mb-3">
+              <div className="mt-5 p-5 bg-surface-elevated shadow-sm rounded-xl border border-border-subtle hover:border-brand-default/40 transition-colors">
+                <p className="text-sm font-bold text-text-primary mb-1 flex items-center gap-1.5">
+                  ✨ Demo Mode
+                </p>
+                <p className="text-xs text-text-muted mb-4 leading-relaxed">
                   Explore the {currentRole.label} portal instantly with realistic sample data. No login needed.
                 </p>
                 <Button
-                  variant="outline" size="sm" className="w-full border-teal text-teal hover:bg-teal hover:text-white"
+                  variant="outline" size="sm" className="w-full border-brand-default/20 bg-subtle/30 text-brand-default hover:bg-brand-hover hover:text-white shadow-none"
                   onClick={handleDemo} loading={loading}
                 >
                   Enter Demo Mode as {currentRole.label}
@@ -288,11 +303,11 @@ export default function LoginPage() {
           {step === 'otp' && (
             <>
               <div className="mb-6">
-                <div className="w-14 h-14 rounded-full bg-teal-light flex items-center justify-center text-2xl mb-4">📱</div>
-                <h1 className="text-2xl font-bold text-navy">Verify your phone</h1>
-                <p className="text-sm text-muted mt-1">
+                <div className="w-14 h-14 rounded-full bg-subtle flex items-center justify-center text-2xl mb-4">📱</div>
+                <h1 className="text-2xl font-bold text-text-primary">Verify your phone</h1>
+                <p className="text-sm text-text-muted mt-1">
                   Enter the 6-digit code sent to{' '}
-                  <strong className="text-navy">+91 {phone.slice(-10)}</strong>
+                  <strong className="text-text-primary">+91 {phone.slice(-10)}</strong>
                 </p>
               </div>
 
@@ -309,18 +324,23 @@ export default function LoginPage() {
                         document.getElementById(`otp-${i - 1}`)?.focus()
                       }
                     }}
-                    className="w-12 h-14 text-center text-xl font-bold rounded-xl border-2 border-border bg-surface text-navy focus:border-teal focus:outline-none transition-colors"
+                    className="w-12 h-14 text-center text-xl font-bold rounded-xl border-2 border-border-subtle bg-surface-elevated text-text-primary focus:border-brand-default focus:outline-none transition-colors"
                   />
                 ))}
               </div>
 
-              {loading && <p className="text-center text-sm text-muted mb-4 animate-pulse">Verifying...</p>}
-              {error && <p className="text-xs text-critical bg-critical-bg px-3 py-2 rounded-lg mb-4">{error}</p>}
+              {loading && <p className="text-center text-sm text-text-muted mb-4 animate-pulse">Verifying...</p>}
+              {error && (
+                <div className="flex items-start gap-2 bg-status-critical-bg/50 border border-status-critical/20 px-3 py-2 rounded-lg text-status-critical mb-4">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs">{error}</p>
+                </div>
+              )}
 
-              <p className="text-center text-sm text-muted mb-4">
+              <p className="text-center text-sm text-text-muted mb-4">
                 Didn't receive it?{' '}
                 <button
-                  className="text-teal font-medium hover:underline"
+                  className="text-brand-default font-medium hover:underline"
                   onClick={handleSendOtp}
                 >
                   Resend OTP
@@ -328,10 +348,15 @@ export default function LoginPage() {
               </p>
 
               {/* Demo bypass */}
-              <div className="p-4 bg-teal-light rounded-xl border border-teal/20">
-                <p className="text-xs text-muted mb-2">No real Supabase project? Use demo mode instead:</p>
+              <div className="p-5 bg-surface-elevated shadow-sm rounded-xl border border-border-subtle hover:border-brand-default/40 transition-colors mt-6">
+                <p className="text-sm font-bold text-text-primary mb-1 flex items-center gap-1.5">
+                  ✨ Demo Mode
+                </p>
+                <p className="text-xs text-text-muted mb-4 leading-relaxed">
+                  No real Supabase project? Explore the portal instantly with realistic sample data.
+                </p>
                 <Button
-                  variant="outline" size="sm" className="w-full border-teal text-teal hover:bg-teal hover:text-white"
+                  variant="outline" size="sm" className="w-full border-brand-default/20 bg-subtle/30 text-brand-default hover:bg-brand-hover hover:text-white shadow-none"
                   onClick={handleDemo} loading={loading}
                 >
                   Skip — Enter Demo Mode

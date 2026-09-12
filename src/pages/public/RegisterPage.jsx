@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
-import { HeartPulse, Mail, User, Phone, Eye, EyeOff, ShieldCheck } from 'lucide-react'
+import { HeartPulse, Mail, User, Phone, Eye, EyeOff, ShieldCheck, AlertCircle } from 'lucide-react'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
@@ -17,6 +17,9 @@ export default function RegisterPage() {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
+
+  const isEmailValid = email.length > 5 && email.includes('@') && email.includes('.')
+  const isPasswordValid = password.length >= 8
 
   const handleRegister = async (e) => {
     e.preventDefault()
@@ -46,18 +49,18 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg flex">
+    <div className="min-h-screen bg-canvas flex">
       {/* Left branding panel */}
-      <div className="hidden lg:flex w-1/2 gradient-navy flex-col justify-between p-12">
-        <div className="flex items-center gap-2 text-surface font-bold text-2xl">
-          <HeartPulse className="w-8 h-8 text-teal" />
+      <div className="hidden lg:flex w-1/2 bg-subtle/40 border-r border-border-subtle flex-col justify-between p-12">
+        <div className="flex items-center gap-2 text-text-primary font-bold text-2xl">
+          <HeartPulse className="w-8 h-8 text-brand-default" />
           CareConnect
         </div>
         <div>
-          <h2 className="text-4xl font-bold text-surface leading-tight mb-4">
+          <h2 className="text-4xl font-bold text-text-primary leading-tight mb-4">
             Join the connected healthcare network.
           </h2>
-          <p className="text-surface/60 text-lg mb-8">
+          <p className="text-text-muted text-lg mb-8">
             Get access to trusted doctors, book appointments, and keep all your medical records in one secure place.
           </p>
           <div className="space-y-3">
@@ -66,14 +69,14 @@ export default function RegisterPage() {
               'Real-time appointment & queue management',
               'Easy specialist referrals',
             ].map(f => (
-              <div key={f} className="flex items-center gap-2 text-surface/80 text-sm">
-                <ShieldCheck className="w-4 h-4 text-teal flex-shrink-0" />
+              <div key={f} className="flex items-center gap-2 text-text-primary/80 text-sm">
+                <ShieldCheck className="w-4 h-4 text-brand-default flex-shrink-0" />
                 {f}
               </div>
             ))}
           </div>
         </div>
-        <p className="text-surface/30 text-xs">
+        <p className="text-text-muted text-xs">
           &copy; {new Date().getFullYear()} CareConnect. Strengthening public health systems.
         </p>
       </div>
@@ -82,14 +85,14 @@ export default function RegisterPage() {
       <div className="flex-1 flex flex-col justify-center items-center p-6">
         <div className="w-full max-w-md">
           {/* Mobile logo */}
-          <div className="flex items-center gap-2 lg:hidden text-navy font-bold text-xl mb-8">
-            <HeartPulse className="w-6 h-6 text-teal" />
+          <div className="flex items-center gap-2 lg:hidden text-text-primary font-bold text-xl mb-8">
+            <HeartPulse className="w-6 h-6 text-brand-default" />
             CareConnect
           </div>
 
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-navy mb-1">Create your account</h1>
-            <p className="text-muted text-sm">Sign up as a patient to access care.</p>
+            <h1 className="text-2xl font-bold text-text-primary mb-1">Create your account</h1>
+            <p className="text-text-muted text-sm">Sign up as a patient to access care.</p>
           </div>
 
           <form onSubmit={handleRegister} className="space-y-4">
@@ -109,13 +112,14 @@ export default function RegisterPage() {
               placeholder="you@example.com"
               value={email} 
               onChange={e => setEmail(e.target.value)} 
-              leftIcon={Mail} 
+              leftIcon={Mail}
+              successText={isEmailValid ? "Email address looks good" : ""}
             />
 
             <div>
-              <label className="text-sm font-medium text-text block mb-1.5">Phone Number (Optional)</label>
+              <label className="text-sm font-medium text-text-primary block mb-1.5">Phone Number (Optional)</label>
               <div className="flex gap-2">
-                <span className="flex items-center px-3 bg-bg border border-border rounded-lg text-sm text-muted font-medium">+91</span>
+                <span className="flex items-center px-3 bg-canvas border border-border-subtle rounded-lg text-sm text-text-muted font-medium">+91</span>
                 <input
                   type="tel" 
                   inputMode="numeric" 
@@ -123,7 +127,7 @@ export default function RegisterPage() {
                   placeholder="98765 43210"
                   value={phone} 
                   onChange={e => setPhone(e.target.value.replace(/\D/g, ''))}
-                  className="flex-1 h-10 px-3 rounded-lg border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-teal"
+                  className="flex-1 h-10 px-3 rounded-lg border border-border-subtle bg-surface-elevated text-sm focus:outline-none focus:ring-2 focus:ring-brand-default"
                 />
               </div>
             </div>
@@ -135,27 +139,33 @@ export default function RegisterPage() {
                 type={showPass ? 'text' : 'password'}
                 placeholder="Create a strong password" 
                 value={password} 
-                onChange={e => setPassword(e.target.value)} 
+                onChange={e => setPassword(e.target.value)}
+                successText={isPasswordValid ? "Password meets requirements" : ""}
               />
               <button 
                 type="button" 
                 onClick={() => setShowPass(s => !s)}
-                className="absolute right-3 top-8 text-muted hover:text-text"
+                className="absolute right-3 top-8 text-text-muted hover:text-text"
               >
                 {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
 
-            {error && <p className="text-xs text-critical bg-critical-bg px-3 py-2 rounded-lg">{error}</p>}
+            {error && (
+              <div className="flex items-start gap-2 bg-status-critical-bg/50 border border-status-critical/20 px-3 py-2 rounded-lg text-status-critical">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <p className="text-xs">{error}</p>
+              </div>
+            )}
 
-            <Button type="submit" className="w-full bg-teal text-white mt-2" size="lg" loading={loading}>
+            <Button type="submit" className="w-full bg-brand-default text-white mt-2" size="lg" loading={loading}>
               Sign Up
             </Button>
           </form>
 
-          <p className="text-center text-sm text-muted mt-6">
+          <p className="text-center text-sm text-text-muted mt-6">
             Already have an account?{' '}
-            <Link to="/login" className="text-teal font-medium hover:underline">
+            <Link to="/login" className="text-brand-default font-medium hover:underline">
               Sign In
             </Link>
           </p>

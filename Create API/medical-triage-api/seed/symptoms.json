@@ -1,0 +1,730 @@
+[
+  {
+    "id": "severe_chest_pain",
+    "name": "Severe Chest Pain",
+    "category": "cardiac",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "chest_pressure",
+    "name": "Chest Pressure",
+    "category": "cardiac",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "chest_tightness",
+    "name": "Chest Tightness",
+    "category": "cardiac",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "chest_pain_with_sweating",
+    "name": "Chest Pain with Sweating",
+    "category": "cardiac",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "chest_pain_with_breathlessness",
+    "name": "Chest Pain with Breathlessness",
+    "category": "cardiac",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "pain_spreading_to_arm",
+    "name": "Chest Pain Spreading to Arm",
+    "category": "cardiac",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "pain_spreading_to_jaw",
+    "name": "Chest Pain Spreading to Jaw",
+    "category": "cardiac",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_shortness_of_breath",
+    "name": "Severe Shortness of Breath",
+    "category": "respiratory",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "difficulty_breathing",
+    "name": "Difficulty Breathing",
+    "category": "respiratory",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "unable_to_breathe",
+    "name": "Unable to Breathe Normally",
+    "category": "respiratory",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "blue_lips",
+    "name": "Blue Lips",
+    "category": "respiratory",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_wheezing",
+    "name": "Severe Wheezing",
+    "category": "respiratory",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_asthma_attack",
+    "name": "Severe Asthma Attack",
+    "category": "respiratory",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "unable_to_speak_breathlessness",
+    "name": "Unable to Speak Due to Breathing Difficulty",
+    "category": "respiratory",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "sudden_weakness_one_side",
+    "name": "Sudden Weakness on One Side",
+    "category": "stroke",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "facial_drooping",
+    "name": "Facial Drooping",
+    "category": "stroke",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "sudden_difficulty_speaking",
+    "name": "Sudden Difficulty Speaking",
+    "category": "stroke",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "sudden_confusion",
+    "name": "Sudden Confusion",
+    "category": "stroke",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "sudden_vision_loss",
+    "name": "Sudden Vision Loss",
+    "category": "stroke",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "sudden_severe_headache",
+    "name": "Sudden Severe Headache",
+    "category": "neurological",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "loss_of_consciousness",
+    "name": "Loss of Consciousness",
+    "category": "neurological",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "unconscious",
+    "name": "Unconsciousness",
+    "category": "neurological",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "unresponsive",
+    "name": "Unresponsive",
+    "category": "neurological",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "fainting_with_serious_symptoms",
+    "name": "Fainting with Serious Symptoms",
+    "category": "neurological",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "seizure",
+    "name": "Seizure",
+    "category": "neurological",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "repeated_seizures",
+    "name": "Repeated Seizures",
+    "category": "neurological",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "prolonged_seizure",
+    "name": "Prolonged Seizure",
+    "category": "neurological",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_confusion",
+    "name": "Severe Confusion",
+    "category": "neurological",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_bleeding",
+    "name": "Severe Bleeding",
+    "category": "bleeding",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "uncontrolled_bleeding",
+    "name": "Uncontrolled Bleeding",
+    "category": "bleeding",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "bleeding_that_wont_stop",
+    "name": "Bleeding That Will Not Stop",
+    "category": "bleeding",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "vomiting_blood",
+    "name": "Vomiting Blood",
+    "category": "internal_bleeding",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "coughing_blood",
+    "name": "Coughing Blood",
+    "category": "internal_bleeding",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "blood_in_stool_with_weakness",
+    "name": "Blood in Stool with Severe Weakness",
+    "category": "internal_bleeding",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_allergic_reaction",
+    "name": "Severe Allergic Reaction",
+    "category": "allergic",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "anaphylaxis",
+    "name": "Anaphylaxis",
+    "category": "allergic",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "throat_swelling",
+    "name": "Throat Swelling",
+    "category": "allergic",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "tongue_swelling_with_breathing_problem",
+    "name": "Tongue Swelling with Breathing Problem",
+    "category": "allergic",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_injury",
+    "name": "Severe Injury",
+    "category": "trauma",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "major_trauma",
+    "name": "Major Trauma",
+    "category": "trauma",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "major_road_accident",
+    "name": "Major Road Accident",
+    "category": "trauma",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_head_injury",
+    "name": "Severe Head Injury",
+    "category": "trauma",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "loss_of_consciousness_after_injury",
+    "name": "Loss of Consciousness After Injury",
+    "category": "trauma",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_burn",
+    "name": "Severe Burn",
+    "category": "burn",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "large_area_burn",
+    "name": "Large Area Burn",
+    "category": "burn",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "airway_burn",
+    "name": "Airway Burn",
+    "category": "burn",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "electric_shock",
+    "name": "Electric Shock",
+    "category": "trauma",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "poisoning",
+    "name": "Suspected Poisoning",
+    "category": "poisoning",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "drug_overdose",
+    "name": "Drug Overdose",
+    "category": "poisoning",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "chemical_exposure_with_breathing_problem",
+    "name": "Chemical Exposure with Breathing Problem",
+    "category": "poisoning",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_abdominal_pain",
+    "name": "Severe Abdominal Pain",
+    "category": "abdominal",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "sudden_severe_abdominal_pain",
+    "name": "Sudden Severe Abdominal Pain",
+    "category": "abdominal",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "abdominal_pain_with_collapse",
+    "name": "Abdominal Pain with Collapse",
+    "category": "abdominal",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_vomiting_with_dehydration",
+    "name": "Severe Vomiting with Dehydration",
+    "category": "gastrointestinal",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_diarrhea_with_dehydration",
+    "name": "Severe Diarrhea with Dehydration",
+    "category": "gastrointestinal",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_dehydration",
+    "name": "Severe Dehydration",
+    "category": "dehydration",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "collapse",
+    "name": "Collapse",
+    "category": "general_emergency",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "signs_of_shock",
+    "name": "Signs of Shock",
+    "category": "general_emergency",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_weakness_with_collapse",
+    "name": "Severe Weakness with Collapse",
+    "category": "general_emergency",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "high_fever_with_confusion",
+    "name": "High Fever with Confusion",
+    "category": "infection",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "high_fever_with_seizure",
+    "name": "High Fever with Seizure",
+    "category": "infection",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_infection_with_collapse",
+    "name": "Severe Infection with Collapse",
+    "category": "infection",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_infection_with_confusion",
+    "name": "Severe Infection with Confusion",
+    "category": "infection",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_pregnancy_bleeding",
+    "name": "Severe Bleeding During Pregnancy",
+    "category": "maternal",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "severe_postpartum_bleeding",
+    "name": "Severe Postpartum Bleeding",
+    "category": "maternal",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "pregnancy_seizure",
+    "name": "Seizure During Pregnancy",
+    "category": "maternal",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "pregnancy_loss_of_consciousness",
+    "name": "Loss of Consciousness During Pregnancy",
+    "category": "maternal",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "child_severe_breathing_problem",
+    "name": "Severe Breathing Problem in Child",
+    "category": "pediatric",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "child_unconsciousness",
+    "name": "Unconsciousness in Child",
+    "category": "pediatric",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "child_seizure",
+    "name": "Seizure in Child",
+    "category": "pediatric",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "child_blue_lips",
+    "name": "Blue Lips in Child",
+    "category": "pediatric",
+    "triage_level": "EMERGENCY",
+    "red_flag": true
+  },
+  {
+    "id": "mild_headache",
+    "name": "Mild Headache",
+    "category": "general",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "moderate_headache",
+    "name": "Moderate Headache",
+    "category": "general",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "fever",
+    "name": "Fever",
+    "category": "general",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "mild_cough",
+    "name": "Mild Cough",
+    "category": "respiratory",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "sore_throat",
+    "name": "Sore Throat",
+    "category": "respiratory",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "runny_nose",
+    "name": "Runny Nose",
+    "category": "respiratory",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "nasal_congestion",
+    "name": "Nasal Congestion",
+    "category": "respiratory",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "body_pain",
+    "name": "Body Pain",
+    "category": "general",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "fatigue",
+    "name": "Fatigue",
+    "category": "general",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "mild_dizziness",
+    "name": "Mild Dizziness",
+    "category": "general",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "nausea",
+    "name": "Nausea",
+    "category": "gastrointestinal",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "mild_vomiting",
+    "name": "Mild Vomiting",
+    "category": "gastrointestinal",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "mild_diarrhea",
+    "name": "Mild Diarrhea",
+    "category": "gastrointestinal",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "stomach_pain",
+    "name": "Stomach Pain",
+    "category": "gastrointestinal",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "mild_abdominal_pain",
+    "name": "Mild Abdominal Pain",
+    "category": "gastrointestinal",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "back_pain",
+    "name": "Back Pain",
+    "category": "musculoskeletal",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "joint_pain",
+    "name": "Joint Pain",
+    "category": "musculoskeletal",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "muscle_pain",
+    "name": "Muscle Pain",
+    "category": "musculoskeletal",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "skin_rash",
+    "name": "Skin Rash",
+    "category": "dermatology",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "itchy_skin",
+    "name": "Itchy Skin",
+    "category": "dermatology",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "mild_allergic_reaction",
+    "name": "Mild Allergic Reaction",
+    "category": "allergic",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "ear_pain",
+    "name": "Ear Pain",
+    "category": "ent",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "toothache",
+    "name": "Toothache",
+    "category": "dental",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "eye_pain",
+    "name": "Eye Pain",
+    "category": "eye",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "red_eye",
+    "name": "Red Eye",
+    "category": "eye",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "constipation",
+    "name": "Constipation",
+    "category": "gastrointestinal",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "loss_of_appetite",
+    "name": "Loss of Appetite",
+    "category": "general",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "frequent_urination",
+    "name": "Frequent Urination",
+    "category": "urinary",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "painful_urination",
+    "name": "Painful Urination",
+    "category": "urinary",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "mild_back_pain",
+    "name": "Mild Back Pain",
+    "category": "musculoskeletal",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "mild_joint_pain",
+    "name": "Mild Joint Pain",
+    "category": "musculoskeletal",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "mild_fever",
+    "name": "Mild Fever",
+    "category": "general",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  },
+  {
+    "id": "mild_cold",
+    "name": "Common Cold Symptoms",
+    "category": "respiratory",
+    "triage_level": "NON_URGENT",
+    "red_flag": false
+  }
+]

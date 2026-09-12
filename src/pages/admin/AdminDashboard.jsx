@@ -24,27 +24,27 @@ function FacilityRow({ fac }) {
   const loadColor = load > 85 ? 'critical' : load > 65 ? 'warning' : 'success'
 
   return (
-    <div className="flex items-center gap-4 p-4 border-b border-border last:border-0 hover:bg-bg transition-colors">
+    <div className="flex items-center gap-4 p-4 border-b border-border-subtle last:border-0 hover:bg-bg transition-colors">
       <div className="w-9 h-9 rounded-lg bg-navy/10 flex items-center justify-center flex-shrink-0">
-        <Building2 className="w-4 h-4 text-navy" />
+        <Building2 className="w-4 h-4 text-text-primary" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p className="font-semibold text-navy text-sm truncate">{fac.name}</p>
+          <p className="font-semibold text-text-primary text-sm truncate">{fac.name}</p>
           <Badge variant={meta.variant} className="text-xs">{meta.label}</Badge>
         </div>
-        <p className="text-xs text-muted">{fac.type} · {fac.location}</p>
+        <p className="text-xs text-text-muted">{fac.type} · {fac.location}</p>
       </div>
       <div className="hidden md:block w-32">
         <div className="flex justify-between text-xs mb-1">
-          <span className="text-muted">Load</span>
+          <span className="text-text-muted">Load</span>
           <span className="font-medium">{fac.patients_today}/{fac.capacity}</span>
         </div>
         <ProgressBar value={fac.patients_today} max={fac.capacity} color={loadColor} showLabel={false} />
       </div>
       <div className="text-right flex-shrink-0">
-        <p className="text-sm font-semibold text-navy">{fac.doctors}</p>
-        <p className="text-xs text-muted">Doctors</p>
+        <p className="text-sm font-semibold text-text-primary">{fac.doctors}</p>
+        <p className="text-xs text-text-muted">Doctors</p>
       </div>
     </div>
   )
@@ -56,21 +56,21 @@ function HighRiskRow({ p }) {
     medium: { variant: 'warning' }, low: { variant: 'success' },
   }
   const statusMeta = {
-    overdue: { label: 'Overdue', color: 'text-critical' },
-    due_soon: { label: 'Due Soon', color: 'text-warning' },
-    on_track: { label: 'On Track', color: 'text-success' },
+    overdue: { label: 'Overdue', color: 'text-status-critical' },
+    due_soon: { label: 'Due Soon', color: 'text-status-warning' },
+    on_track: { label: 'On Track', color: 'text-status-success' },
   }
   return (
-    <tr className="border-b border-border hover:bg-bg transition-colors last:border-0">
+    <tr className="border-b border-border-subtle hover:bg-bg transition-colors last:border-0">
       <td className="px-4 py-3">
         <div>
-          <p className="font-medium text-navy text-sm">{p.name}</p>
-          <p className="text-xs text-muted">{p.age} yrs</p>
+          <p className="font-medium text-text-primary text-sm">{p.name}</p>
+          <p className="text-xs text-text-muted">{p.age} yrs</p>
         </div>
       </td>
       <td className="px-4 py-3"><Badge variant={riskMeta[p.risk].variant} className="capitalize">{p.risk}</Badge></td>
-      <td className="px-4 py-3"><span className="text-xs bg-bg rounded-full px-2 py-0.5 border border-border">{p.category}</span></td>
-      <td className="px-4 py-3"><span className="text-xs text-muted">{p.last_visit}</span></td>
+      <td className="px-4 py-3"><span className="text-xs bg-canvas rounded-full px-2 py-0.5 border border-border-subtle">{p.category}</span></td>
+      <td className="px-4 py-3"><span className="text-xs text-text-muted">{p.last_visit}</span></td>
       <td className="px-4 py-3">
         <span className={`text-xs font-semibold ${statusMeta[p.status].color}`}>{statusMeta[p.status].label}</span>
       </td>
@@ -83,16 +83,16 @@ function BarChart({ data, title }) {
   const max = Math.max(...data.map(d => d.value))
   return (
     <div>
-      <p className="text-sm font-semibold text-navy mb-4">{title}</p>
+      <p className="text-sm font-semibold text-text-primary mb-4">{title}</p>
       <div className="flex items-end gap-2 h-28">
         {data.map((d, i) => (
           <div key={d.label} className="flex-1 flex flex-col items-center gap-1">
             <div
-              className="w-full rounded-t-md bg-teal transition-all duration-700"
+              className="w-full rounded-t-md bg-brand-default transition-all duration-700"
               style={{ height: `${(d.value / max) * 100}%`, opacity: 0.7 + (i / data.length) * 0.3 }}
               title={`${d.value}`}
             />
-            <span className="text-xs text-muted text-center leading-tight">{d.label}</span>
+            <span className="text-xs text-text-muted text-center leading-tight">{d.label}</span>
           </div>
         ))}
       </div>
@@ -162,10 +162,10 @@ export default function AdminDashboard() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-navy">Good morning, {name} 👋</h1>
-            <p className="text-muted text-sm">Healthcare Operations Overview · {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+            <h1 className="text-2xl font-bold text-text-primary">Good morning, {name} 👋</h1>
+            <p className="text-text-muted text-sm">Healthcare Operations Overview · {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
           </div>
-          <Button className="bg-teal text-white flex-shrink-0">Generate Report</Button>
+          <Button className="bg-brand-default text-white flex-shrink-0">Generate Report</Button>
         </div>
 
         {/* Alerts */}
@@ -192,26 +192,26 @@ export default function AdminDashboard() {
         {/* Charts + Facilities */}
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Chart */}
-          <div className="lg:col-span-1 bg-surface rounded-xl border border-border p-5">
+          <div className="lg:col-span-1 bg-surface-elevated rounded-xl border border-border-subtle p-5">
             <BarChart data={weeklyData} title="Weekly Consultations" />
-            <div className="mt-4 flex justify-between text-xs text-muted">
-              <span>Total this week: <strong className="text-navy">{weeklyData.reduce((acc, curr) => acc + curr.value, 0)}</strong></span>
-              <span className="text-success flex items-center gap-1"><TrendingUp className="w-3 h-3" />+12%</span>
+            <div className="mt-4 flex justify-between text-xs text-text-muted">
+              <span>Total this week: <strong className="text-text-primary">{weeklyData.reduce((acc, curr) => acc + curr.value, 0)}</strong></span>
+              <span className="text-status-success flex items-center gap-1"><TrendingUp className="w-3 h-3" />+12%</span>
             </div>
           </div>
 
           {/* Quality metrics */}
-          <div className="lg:col-span-2 bg-surface rounded-xl border border-border p-5">
+          <div className="lg:col-span-2 bg-surface-elevated rounded-xl border border-border-subtle p-5">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-sm font-semibold text-navy">Quality Indicators</h3>
+              <h3 className="text-sm font-semibold text-text-primary">Quality Indicators</h3>
               <Button size="sm" variant="ghost" onClick={() => navigate('/admin/quality')}>View Full Dashboard</Button>
             </div>
             <div className="space-y-4">
               {qualityIndicators.map(m => (
                 <div key={m.label}>
                   <div className="flex justify-between text-xs mb-1.5">
-                    <span className="text-muted">{m.label}</span>
-                    <span className={`font-semibold ${m.value >= m.target ? 'text-success' : 'text-warning'}`}>{m.value}% <span className="text-muted font-normal">/ {m.target}% target</span></span>
+                    <span className="text-text-muted">{m.label}</span>
+                    <span className={`font-semibold ${m.value >= m.target ? 'text-status-success' : 'text-status-warning'}`}>{m.value}% <span className="text-text-muted font-normal">/ {m.target}% target</span></span>
                   </div>
                   <ProgressBar value={m.value} max={100} color={m.color} showLabel={false} />
                 </div>
@@ -222,28 +222,28 @@ export default function AdminDashboard() {
 
         {/* Facility grid */}
         <div className="grid lg:grid-cols-2 gap-6">
-          <div className="bg-surface rounded-xl border border-border">
-            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-navy">Facility Status</h3>
+          <div className="bg-surface-elevated rounded-xl border border-border-subtle">
+            <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-text-primary">Facility Status</h3>
               <Button size="sm" variant="ghost" onClick={() => navigate('/admin/facilities')}>Manage</Button>
             </div>
             {facilities.map(fac => <FacilityRow key={fac.id} fac={fac} />)}
           </div>
 
           {/* High risk patients */}
-          <div className="bg-surface rounded-xl border border-border">
-            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-navy">High-Risk Patients Requiring Attention</h3>
+          <div className="bg-surface-elevated rounded-xl border border-border-subtle">
+            <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-text-primary">High-Risk Patients Requiring Attention</h3>
               <Button size="sm" variant="ghost" onClick={() => navigate('/admin/high-risk')}>View All</Button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead><tr className="bg-bg border-b border-border">
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted">Patient</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted">Risk</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted">Category</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted">Last Visit</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted">Status</th>
+                <thead><tr className="bg-canvas border-b border-border-subtle">
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-text-muted">Patient</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-text-muted">Risk</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-text-muted">Category</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-text-muted">Last Visit</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-text-muted">Status</th>
                 </tr></thead>
                 <tbody>
                   {highRisk.map(p => <HighRiskRow key={p.id} p={p} />)}

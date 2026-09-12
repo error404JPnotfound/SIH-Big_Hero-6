@@ -50,8 +50,8 @@ function NavItem({ href, icon: Icon, label, collapsed }) {
       className={cn(
         'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
         active
-          ? 'bg-teal text-white shadow-sm'
-          : 'text-surface/70 hover:bg-surface/10 hover:text-surface'
+          ? 'bg-brand-default text-white shadow-sm'
+          : 'text-text-muted hover:bg-bg hover:text-navy'
       )}
     >
       <Icon className="w-4.5 h-4.5 flex-shrink-0" />
@@ -76,19 +76,19 @@ export default function AppLayout({ children, role }) {
 
   const Sidebar = () => (
     <aside className={cn(
-      'flex flex-col h-full gradient-navy border-r border-surface/10 transition-all duration-300',
+      'flex flex-col h-full bg-surface-elevated border-r border-border-subtle transition-all duration-300',
       collapsed ? 'w-16' : 'w-64'
     )}>
       {/* Logo */}
-      <div className={cn('flex items-center gap-2.5 px-4 py-5 border-b border-surface/10', collapsed && 'justify-center px-2')}>
-        <HeartPulse className="w-7 h-7 text-teal flex-shrink-0" />
-        {!collapsed && <span className="font-bold text-lg text-surface">CareConnect</span>}
+      <div className={cn('flex items-center gap-2.5 px-4 py-5 border-b border-border-subtle', collapsed && 'justify-center px-2')}>
+        <HeartPulse className="w-7 h-7 text-brand-default flex-shrink-0" />
+        {!collapsed && <span translate="no" className="notranslate font-bold text-lg text-text-primary">CareConnect</span>}
       </div>
 
       {/* Role label */}
       {!collapsed && (
         <div className="px-4 pt-4 pb-2">
-          <span className="text-xs font-semibold text-surface/40 uppercase tracking-widest">
+          <span className="text-xs font-semibold text-text-muted uppercase tracking-widest">
             {role === 'patient' ? 'Patient Portal' : role === 'doctor' ? 'Clinical Portal' : 'Admin Portal'}
           </span>
         </div>
@@ -102,17 +102,26 @@ export default function AppLayout({ children, role }) {
       </nav>
 
       {/* Bottom controls */}
-      <div className={cn('px-2 py-3 border-t border-surface/10 space-y-1')}>
+      <div className={cn('px-2 py-3 border-t border-border-subtle space-y-1')}>
+        {/* Desktop Collapse */}
         <button
           onClick={() => setCollapsed(c => !c)}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-surface/60 hover:bg-surface/10 hover:text-surface transition-colors"
+          className="hidden lg:flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-text-muted hover:bg-canvas hover:text-text-primary transition-colors"
         >
           {collapsed ? <Menu className="w-4 h-4" /> : <ChevronDown className="w-4 h-4 -rotate-90" />}
           {!collapsed && <span>Collapse</span>}
         </button>
+        {/* Mobile Close */}
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="lg:hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-text-muted hover:bg-canvas hover:text-text-primary transition-colors"
+        >
+          <X className="w-4 h-4" />
+          <span>Close Menu</span>
+        </button>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-surface/60 hover:bg-critical/20 hover:text-critical transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-text-muted hover:bg-critical-bg hover:text-critical transition-colors"
         >
           <LogOut className="w-4 h-4 flex-shrink-0" />
           {!collapsed && <span>Sign Out</span>}
@@ -122,7 +131,7 @@ export default function AppLayout({ children, role }) {
   )
 
   return (
-    <div className="flex h-screen bg-bg overflow-hidden">
+    <div className="flex h-screen bg-canvas overflow-hidden">
       {/* Desktop Sidebar */}
       <div className="hidden lg:flex">
         <Sidebar />
@@ -141,26 +150,26 @@ export default function AppLayout({ children, role }) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
-        <header className="h-14 bg-surface border-b border-border flex items-center gap-3 px-4 flex-shrink-0 z-10">
+        <header className="h-14 bg-surface-elevated border-b border-border-subtle flex items-center gap-3 px-4 flex-shrink-0 z-10">
           <button
-            className="lg:hidden p-2 rounded-lg hover:bg-bg text-muted"
+            className="lg:hidden p-2 rounded-lg hover:bg-bg text-text-muted"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="w-5 h-5" />
           </button>
 
           {/* Search */}
-          <div className="hidden sm:flex items-center gap-2 bg-bg rounded-lg px-3 py-1.5 flex-1 max-w-xs border border-border">
-            <Search className="w-4 h-4 text-muted flex-shrink-0" />
+          <div className="hidden sm:flex items-center gap-2 bg-canvas rounded-lg px-3 py-1.5 flex-1 max-w-xs border border-border-subtle">
+            <Search className="w-4 h-4 text-text-muted flex-shrink-0" />
             <input
-              className="flex-1 bg-transparent text-sm text-text placeholder:text-muted focus:outline-none min-w-0"
+              className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-muted focus:outline-none min-w-0"
               placeholder="Search..."
             />
           </div>
 
           <div className="ml-auto flex items-center gap-2">
             {/* Demo mode badge */}
-            <span className="hidden sm:inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-warning-bg text-warning border border-warning/30">
+            <span className="hidden sm:inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-status-warning-bg text-status-warning border border-status-warning/30">
               Demo Mode
             </span>
 
@@ -168,17 +177,17 @@ export default function AppLayout({ children, role }) {
             <LanguageSwitcher dark={false} />
 
             {/* Notifications */}
-            <button className="relative p-2 rounded-lg hover:bg-bg text-muted hover:text-text">
+            <button className="relative p-2 rounded-lg hover:bg-bg text-text-muted hover:text-text">
               <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-critical rounded-full" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-status-critical rounded-full" />
             </button>
 
             {/* Avatar */}
             <div className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-bg cursor-pointer">
-              <div className="w-7 h-7 rounded-full bg-teal flex items-center justify-center text-white text-xs font-bold">
+              <div className="w-7 h-7 rounded-full bg-brand-default flex items-center justify-center text-white text-xs font-bold">
                 {(user?.name || 'U').charAt(0)}
               </div>
-              <span className="hidden md:block text-sm font-medium text-text truncate max-w-32">
+              <span className="hidden md:block text-sm font-medium text-text-primary truncate max-w-32">
                 {user?.name || 'User'}
               </span>
             </div>

@@ -4,7 +4,7 @@ import { cn } from '../../lib/utils'
 export function Card({ children, className, ...props }) {
   return (
     <div
-      className={cn('bg-surface rounded-xl border border-border shadow-sm', className)}
+      className={cn('bg-surface-elevated rounded-xl border border-border-subtle shadow-sm', className)}
       {...props}
     >
       {children}
@@ -13,11 +13,11 @@ export function Card({ children, className, ...props }) {
 }
 
 export function CardHeader({ children, className }) {
-  return <div className={cn('px-6 pt-5 pb-4 border-b border-border', className)}>{children}</div>
+  return <div className={cn('px-6 pt-5 pb-4 border-b border-border-subtle', className)}>{children}</div>
 }
 
 export function CardTitle({ children, className }) {
-  return <h3 className={cn('text-base font-semibold text-navy', className)}>{children}</h3>
+  return <h3 className={cn('text-base font-semibold text-text-primary', className)}>{children}</h3>
 }
 
 export function CardBody({ children, className }) {
@@ -61,36 +61,38 @@ function AnimatedNumber({ value, duration = 2000 }) {
 
 export function KPICard({ title, value, subtitle, icon: Icon, trend, color = 'teal', onClick }) {
   const colors = {
-    teal:     { bg: 'bg-teal-light', text: 'text-teal', icon: 'bg-teal/20' },
-    blue:     { bg: 'bg-blue-light', text: 'text-blue', icon: 'bg-blue/20' },
-    success:  { bg: 'bg-success-bg', text: 'text-success', icon: 'bg-success/20' },
-    warning:  { bg: 'bg-warning-bg', text: 'text-warning', icon: 'bg-warning/20' },
-    critical: { bg: 'bg-critical-bg', text: 'text-critical', icon: 'bg-critical/20' },
-    navy:     { bg: 'bg-navy/5', text: 'text-navy', icon: 'bg-navy/10' },
+    teal:     { bg: 'bg-subtle', text: 'text-brand-default', icon: 'bg-brand-default/20' },
+    blue:     { bg: 'bg-brand-secondary-light', text: 'text-brand-secondary', icon: 'bg-brand-secondary/20' },
+    success:  { bg: 'bg-status-success-bg', text: 'text-status-success', icon: 'bg-status-success/20' },
+    warning:  { bg: 'bg-status-warning-bg', text: 'text-status-warning', icon: 'bg-status-warning/20' },
+    critical: { bg: 'bg-status-critical-bg', text: 'text-status-critical', icon: 'bg-status-critical/20' },
+    navy:     { bg: 'bg-navy/5', text: 'text-text-primary', icon: 'bg-navy/10' },
   }
   const c = colors[color]
   return (
     <div
-      className={cn('bg-surface rounded-xl border border-border p-5 shadow-sm hover:shadow-md transition-shadow', onClick && 'cursor-pointer')}
+      className={cn('bg-surface-elevated rounded-xl border border-border-subtle p-5 shadow-sm hover:shadow-md transition-shadow', onClick && 'cursor-pointer')}
       onClick={onClick}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-muted uppercase tracking-wider mb-1">{title}</p>
-          <p className={cn('text-2xl font-bold', c.text)}>
-            <AnimatedNumber value={value} />
-          </p>
-          {subtitle && <p className="text-xs text-muted mt-0.5">{subtitle}</p>}
-        </div>
-        {Icon && (
-          <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0', c.icon)}>
-            <Icon className={cn('w-5 h-5', c.text)} />
+      <div className="flex flex-col">
+        <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2 leading-snug">{title}</p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className={cn('text-2xl font-bold', c.text)}>
+              <AnimatedNumber value={value} />
+            </p>
+            {subtitle && <p className="text-xs text-text-muted mt-1">{subtitle}</p>}
           </div>
-        )}
+          {Icon && (
+            <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0', c.icon)}>
+              <Icon className={cn('w-5 h-5', c.text)} />
+            </div>
+          )}
+        </div>
       </div>
       {trend !== undefined && (
-        <div className="mt-3 pt-3 border-t border-border">
-          <span className={cn('text-xs font-medium', trend >= 0 ? 'text-success' : 'text-critical')}>
+        <div className="mt-3 pt-3 border-t border-border-subtle">
+          <span className={cn('text-xs font-medium', trend >= 0 ? 'text-status-success' : 'text-status-critical')}>
             {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}% vs last week
           </span>
         </div>

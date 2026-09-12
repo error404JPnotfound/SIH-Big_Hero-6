@@ -1,0 +1,85 @@
+[
+  {
+    "code": "chest_pain",
+    "keywords": [
+      "severe chest pain",
+      "chest pain",
+      "pressure in chest",
+      "tightness in chest",
+      "pain in chest",
+      "pain around chest"
+    ],
+    "severity": "EMERGENCY",
+    "message": "Chest pain may require immediate medical assessment."
+  },
+  {
+    "code": "difficulty_breathing",
+    "keywords": [
+      "difficulty breathing",
+      "severe difficulty breathing",
+      "shortness of breath",
+      "severe shortness of breath",
+      "trouble breathing",
+      "unable to breathe normally",
+      "breathing problem",
+      "severe breathing distress"
+    ],
+    "severity": "EMERGENCY",
+    "message": "Difficulty breathing is an emergency warning sign."
+  },
+  {
+    "code": "loss_of_consciousness",
+    "keywords": [
+      "unconsciousness",
+      "loss of consciousness",
+      "passed out",
+      "fainted",
+      "unresponsive",
+      "unconscious",
+      "sudden collapse"
+    ],
+    "severity": "EMERGENCY",
+    "message": "Loss of consciousness is a medical emergency."
+  },
+  {
+    "code": "seizure",
+    "keywords": [
+      "seizure"
+    ],
+    "severity": "EMERGENCY",
+    "message": "A seizure may require immediate medical attention."
+  },
+  {
+    "code": "severe_bleeding",
+    "keywords": [
+      "severe bleeding",
+      "uncontrolled bleeding",
+      "bleeding that will not stop",
+      "coughing large amounts of blood",
+      "vomiting large amounts of blood"
+    ],
+    "severity": "EMERGENCY",
+    "message": "Severe bleeding is a medical emergency."
+  },
+  {
+    "code": "severe_allergic_reaction",
+    "keywords": [
+      "severe allergic reaction",
+      "anaphylaxis",
+      "swelling of throat",
+      "difficulty breathing after allergic reaction"
+    ],
+    "severity": "EMERGENCY",
+    "message": "Severe allergic reaction requires immediate treatment."
+  },
+  {
+    "code": "severe_injury",
+    "keywords": [
+      "severe injury",
+      "major trauma",
+      "serious accident"
+    ],
+    "severity": "EMERGENCY",
+    "message": "Severe injuries require immediate medical assessment."
+  }
+]

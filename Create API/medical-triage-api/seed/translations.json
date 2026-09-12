@@ -1,0 +1,35 @@
+{
+  "en": {
+    "chest pain": "severe_chest_pain",
+    "severe chest pain": "severe_chest_pain",
+    "pain in chest": "severe_chest_pain",
+    "pain around chest": "severe_chest_pain",
+    "pressure in chest": "chest_pressure",
+    "tightness in chest": "chest_tightness",
+    "difficulty breathing": "difficulty_breathing",
+    "breathing problem": "difficulty_breathing",
+    "trouble breathing": "difficulty_breathing",
+    "shortness of breath": "difficulty_breathing",
+    "loss of consciousness": "loss_of_consciousness",
+    "passed out": "loss_of_consciousness",
+    "fainted": "loss_of_consciousness",
+    "unconscious": "loss_of_consciousness",
+    "mild headache": "mild_headache",
+    "fever": "fever",
+    "body pain": "body_pain"
+  },
+  "hi": {
+    "सीने में दर्द": "severe_chest_pain",
+    "सांस लेने में कठिनाई": "difficulty_breathing",
+    "बेहोश हो जाना": "loss_of_consciousness",
+    "बुखार": "fever",
+    "सिरदर्द": "mild_headache"
+  },
+  "gu": {
+    "છાતીમાં દુખાવો": "severe_chest_pain",
+    "શ્વાસ લેવામાં તકલીફ": "difficulty_breathing",
+    "બેભાન": "loss_of_consciousness",
+    "તાવ": "fever",
+    "માથાનો દુખાવો": "mild_headache"
+  }
+}

@@ -3,13 +3,13 @@ import { cn } from '../../lib/utils'
 export function Button({ children, variant = 'primary', size = 'md', className, disabled, loading, ...props }) {
   const base = 'inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer select-none'
   const variants = {
-    primary:  'bg-teal text-white hover:bg-teal/90 active:scale-[0.98] shadow-sm',
-    blue:     'bg-blue text-white hover:bg-blue/90 active:scale-[0.98] shadow-sm',
+    primary:  'bg-brand-default text-white hover:bg-brand-hover/90 active:scale-[0.98] shadow-sm',
+    blue:     'bg-brand-secondary text-white hover:bg-blue/90 active:scale-[0.98] shadow-sm',
     navy:     'bg-navy text-white hover:bg-navy/90 active:scale-[0.98]',
-    outline:  'border border-border bg-surface text-text hover:bg-bg active:scale-[0.98]',
-    ghost:    'text-muted hover:bg-bg hover:text-text active:scale-[0.98]',
-    danger:   'bg-critical text-white hover:bg-critical/90 active:scale-[0.98]',
-    success:  'bg-success text-white hover:bg-success/90 active:scale-[0.98]',
+    outline:  'border border-border-subtle bg-surface-elevated text-text-primary hover:bg-bg active:scale-[0.98]',
+    ghost:    'text-text-muted hover:bg-bg hover:text-text active:scale-[0.98]',
+    danger:   'bg-status-critical text-white hover:bg-critical/90 active:scale-[0.98]',
+    success:  'bg-status-success text-white hover:bg-success/90 active:scale-[0.98]',
   }
   const sizes = {
     sm:   'px-3 py-1.5 text-sm h-8',

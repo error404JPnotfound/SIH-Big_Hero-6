@@ -13,27 +13,27 @@ function Hero() {
   return (
     <section className="relative overflow-hidden bg-navy py-24 lg:py-32">
       {/* Decorative circles */}
-      <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-teal/10 blur-3xl" />
-      <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-blue/10 blur-3xl" />
+      <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-brand-default/10 blur-3xl" />
+      <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-brand-secondary/10 blur-3xl" />
 
       <div className="relative container mx-auto px-4 max-w-6xl">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left */}
           <div className="text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 bg-teal/20 text-teal rounded-full px-4 py-1.5 text-sm font-medium mb-6">
+            <div className="inline-flex items-center gap-2 bg-brand-default/20 text-brand-default rounded-full px-4 py-1.5 text-sm font-medium mb-6">
               <HeartPulse className="w-4 h-4" />
               Strengthening Public Healthcare
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-surface leading-tight mb-6">
               Healthcare Access,{' '}
-              <span className="text-teal">Wherever</span>{' '}
+              <span className="text-brand-default">Wherever</span>{' '}
               Care Is Needed.
             </h1>
             <p className="text-lg text-surface/70 mb-8 max-w-xl mx-auto lg:mx-0">
               Connect with healthcare professionals, manage appointments, track referrals and keep your health journey connected — from local health centres to specialists.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
-              <Button size="xl" className="bg-teal hover:bg-teal/90 text-white" onClick={() => navigate('/register')}>
+              <Button size="xl" className="bg-brand-default hover:bg-brand-hover/90 text-white" onClick={() => navigate('/register')}>
                 Get Care Now <ArrowRight className="w-5 h-5" />
               </Button>
               <Button size="xl" variant="outline" className="border-surface/20 text-surface hover:bg-surface/10 hover:text-surface" onClick={() => document.getElementById('services').scrollIntoView({ behavior: 'smooth' })}>
@@ -46,17 +46,17 @@ function Hero() {
           <div className="hidden lg:flex justify-center items-center">
             <div className="relative w-80 h-80">
               {/* Central node */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-teal flex flex-col items-center justify-center text-white shadow-xl z-10">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-brand-default flex flex-col items-center justify-center text-white shadow-xl z-10">
                 <HeartPulse className="w-8 h-8" />
                 <span className="text-xs font-semibold mt-0.5">Patient</span>
               </div>
               {/* Orbiting nodes */}
               {[
-                { label: 'Sub-Centre', icon: Building2, deg: 270, color: 'bg-blue' },
-                { label: 'Doctor', icon: Stethoscope, deg: 342, color: 'bg-success' },
-                { label: 'Diagnostics', icon: Activity, deg: 54, color: 'bg-warning' },
-                { label: 'Pharmacy', icon: Pill, deg: 126, color: 'bg-teal' },
-                { label: 'Hospital', icon: Building2, deg: 198, color: 'bg-blue' },
+                { label: 'Sub-Centre', icon: Building2, deg: 270, color: 'bg-brand-secondary' },
+                { label: 'Doctor', icon: Stethoscope, deg: 342, color: 'bg-status-success' },
+                { label: 'Diagnostics', icon: Activity, deg: 54, color: 'bg-status-warning' },
+                { label: 'Pharmacy', icon: Pill, deg: 126, color: 'bg-brand-default' },
+                { label: 'Hospital', icon: Building2, deg: 198, color: 'bg-brand-secondary' },
               ].map(({ label, icon: Icon, deg, color }) => {
                 const rad = (deg * Math.PI) / 180
                 const r = 120
@@ -88,7 +88,7 @@ function Hero() {
             { value: '95%', label: 'Referral Rate' },
           ].map(stat => (
             <div key={stat.label} className="text-center">
-              <div className="text-3xl font-bold text-teal">{stat.value}</div>
+              <div className="text-3xl font-bold text-brand-default">{stat.value}</div>
               <div className="text-sm text-surface/50 mt-1">{stat.label}</div>
             </div>
           ))}
@@ -100,27 +100,27 @@ function Hero() {
 
 function Problem() {
   return (
-    <section id="problem" className="py-20 bg-bg">
+    <section id="problem" className="py-20 bg-canvas">
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="text-center mb-14">
-          <h2 className="text-3xl font-bold text-navy mb-4">Bridging the Rural Healthcare Gap</h2>
-          <p className="text-muted max-w-2xl mx-auto">
+          <h2 className="text-3xl font-bold text-text-primary mb-4">Bridging the Rural Healthcare Gap</h2>
+          <p className="text-text-muted max-w-2xl mx-auto">
             Rural and underserved communities face unique barriers to quality healthcare. CareConnect systematically addresses each one.
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           {[
-            { icon: MapPin, title: 'Distance & Travel', desc: 'Patients travel hours for basic consultations. CareConnect brings the doctor to the patient through assisted teleconsultation.', color: 'text-critical' },
-            { icon: FileText, title: 'Fragmented Records', desc: 'Medical history scattered across paper registers. Our longitudinal digital records follow you from Sub-Centre to Specialist.', color: 'text-warning' },
-            { icon: Clock, title: 'Long Waiting Times', desc: 'Digital queue management reduces uncertainty and helps patients plan their day rather than waiting blindly.', color: 'text-blue' },
-            { icon: ClipboardList, title: 'Lost Referrals', desc: 'Referral slips get lost or delayed. Every referral is tracked in real-time from creation to specialist appointment.', color: 'text-critical' },
-            { icon: Pill, title: 'Medicine Uncertainty', desc: 'Patients travel only to find medicine unavailable. Real-time medicine availability across facilities saves unnecessary trips.', color: 'text-warning' },
-            { icon: AlertCircle, title: 'Poor Follow-up', desc: 'High-risk patients — maternal, diabetic, TB — often miss follow-ups. Automated alerts ensure no one falls through the cracks.', color: 'text-success' },
+            { icon: MapPin, title: 'Distance & Travel', desc: 'Patients travel hours for basic consultations. CareConnect brings the doctor to the patient through assisted teleconsultation.', color: 'text-status-critical' },
+            { icon: FileText, title: 'Fragmented Records', desc: 'Medical history scattered across paper registers. Our longitudinal digital records follow you from Sub-Centre to Specialist.', color: 'text-status-warning' },
+            { icon: Clock, title: 'Long Waiting Times', desc: 'Digital queue management reduces uncertainty and helps patients plan their day rather than waiting blindly.', color: 'text-brand-secondary' },
+            { icon: ClipboardList, title: 'Lost Referrals', desc: 'Referral slips get lost or delayed. Every referral is tracked in real-time from creation to specialist appointment.', color: 'text-status-critical' },
+            { icon: Pill, title: 'Medicine Uncertainty', desc: 'Patients travel only to find medicine unavailable. Real-time medicine availability across facilities saves unnecessary trips.', color: 'text-status-warning' },
+            { icon: AlertCircle, title: 'Poor Follow-up', desc: 'High-risk patients — maternal, diabetic, TB — often miss follow-ups. Automated alerts ensure no one falls through the cracks.', color: 'text-status-success' },
           ].map(item => (
-            <div key={item.title} className="bg-surface rounded-xl border border-border p-6 hover:shadow-md transition-shadow">
+            <div key={item.title} className="bg-surface-elevated rounded-xl border border-border-subtle p-6 hover:shadow-md transition-shadow">
               <item.icon className={`w-10 h-10 ${item.color} mb-4`} />
-              <h3 className="text-base font-bold text-navy mb-2">{item.title}</h3>
-              <p className="text-sm text-muted leading-relaxed">{item.desc}</p>
+              <h3 className="text-base font-bold text-text-primary mb-2">{item.title}</h3>
+              <p className="text-sm text-text-muted leading-relaxed">{item.desc}</p>
             </div>
           ))}
         </div>
@@ -137,10 +137,10 @@ function HowItWorks() {
     { num: '04', title: 'Track & Follow Up', desc: 'Track referrals, test results, and follow-ups from one place. High-risk patients receive automated reminders.' },
   ]
   return (
-    <section id="how-it-works" className="py-20 bg-surface">
+    <section id="how-it-works" className="py-20 bg-surface-elevated">
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="text-center mb-14">
-          <h2 className="text-3xl font-bold text-navy mb-4">How CareConnect Works</h2>
+          <h2 className="text-3xl font-bold text-text-primary mb-4">How CareConnect Works</h2>
         </div>
         <div className="grid md:grid-cols-4 gap-8 relative">
           <div className="hidden md:block absolute top-10 left-1/4 right-1/4 h-px bg-border" />
@@ -149,8 +149,8 @@ function HowItWorks() {
               <div className="w-16 h-16 rounded-2xl gradient-teal flex items-center justify-center text-white text-xl font-bold mb-4 shadow-lg">
                 {step.num}
               </div>
-              <h3 className="font-semibold text-navy mb-2">{step.title}</h3>
-              <p className="text-sm text-muted leading-relaxed">{step.desc}</p>
+              <h3 className="font-semibold text-text-primary mb-2">{step.title}</h3>
+              <p className="text-sm text-text-muted leading-relaxed">{step.desc}</p>
             </div>
           ))}
         </div>
@@ -171,29 +171,29 @@ function Services() {
     { icon: AlertCircle, title: 'Follow-up Monitoring', desc: 'Automated follow-up for maternal, child, TB, and chronic conditions.', color: 'critical' },
   ]
   const colorMap = {
-    teal: 'bg-teal-light text-teal',
-    blue: 'bg-blue-light text-blue',
-    success: 'bg-success-bg text-success',
-    warning: 'bg-warning-bg text-warning',
-    critical: 'bg-critical-bg text-critical',
+    teal: 'bg-subtle text-brand-default',
+    blue: 'bg-brand-secondary-light text-brand-secondary',
+    success: 'bg-status-success-bg text-status-success',
+    warning: 'bg-status-warning-bg text-status-warning',
+    critical: 'bg-status-critical-bg text-status-critical',
   }
   return (
-    <section id="services" className="py-20 bg-bg">
+    <section id="services" className="py-20 bg-canvas">
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="text-center mb-14">
-          <h2 className="text-3xl font-bold text-navy mb-4">A Complete Healthcare Ecosystem</h2>
-          <p className="text-muted max-w-2xl mx-auto">
+          <h2 className="text-3xl font-bold text-text-primary mb-4">A Complete Healthcare Ecosystem</h2>
+          <p className="text-text-muted max-w-2xl mx-auto">
             One connected platform from the local health centre to the specialist.
           </p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {services.map(s => (
-            <div key={s.title} className="bg-surface rounded-xl border border-border p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+            <div key={s.title} className="bg-surface-elevated rounded-xl border border-border-subtle p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${colorMap[s.color]}`}>
                 <s.icon className="w-6 h-6" />
               </div>
-              <h3 className="font-semibold text-navy mb-1.5 text-sm">{s.title}</h3>
-              <p className="text-xs text-muted leading-relaxed">{s.desc}</p>
+              <h3 className="font-semibold text-text-primary mb-1.5 text-sm">{s.title}</h3>
+              <p className="text-xs text-text-muted leading-relaxed">{s.desc}</p>
             </div>
           ))}
         </div>
@@ -204,22 +204,22 @@ function Services() {
 
 function Trust() {
   return (
-    <section className="py-20 bg-surface">
+    <section className="py-20 bg-surface-elevated">
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="text-center mb-14">
-          <h2 className="text-3xl font-bold text-navy mb-4">Built on Trust & Security</h2>
+          <h2 className="text-3xl font-bold text-text-primary mb-4">Built on Trust & Security</h2>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           {[
-            { icon: Shield, title: 'RBAC & Encryption', desc: 'Row-level security ensures patients see only their own records. All data encrypted in transit and at rest.', color: 'text-teal' },
-            { icon: Globe, title: 'Multilingual', desc: 'Full support for English, Hindi, and Gujarati so no patient is left behind due to language barriers.', color: 'text-blue' },
-            { icon: Wifi, title: 'Low Connectivity Mode', desc: 'Offline-first PWA: enter data, queue appointments, and save notes without internet. Sync when connected.', color: 'text-success' },
+            { icon: Shield, title: 'RBAC & Encryption', desc: 'Row-level security ensures patients see only their own records. All data encrypted in transit and at rest.', color: 'text-brand-default' },
+            { icon: Globe, title: 'Multilingual', desc: 'Full support for English, Hindi, and Gujarati so no patient is left behind due to language barriers.', color: 'text-brand-secondary' },
+            { icon: Wifi, title: 'Low Connectivity Mode', desc: 'Offline-first PWA: enter data, queue appointments, and save notes without internet. Sync when connected.', color: 'text-status-success' },
           ].map(item => (
-            <div key={item.title} className="flex gap-4 p-6 bg-bg rounded-xl border border-border">
+            <div key={item.title} className="flex gap-4 p-6 bg-canvas rounded-xl border border-border-subtle">
               <item.icon className={`w-8 h-8 flex-shrink-0 mt-1 ${item.color}`} />
               <div>
-                <h3 className="font-semibold text-navy mb-1">{item.title}</h3>
-                <p className="text-sm text-muted leading-relaxed">{item.desc}</p>
+                <h3 className="font-semibold text-text-primary mb-1">{item.title}</h3>
+                <p className="text-sm text-text-muted leading-relaxed">{item.desc}</p>
               </div>
             </div>
           ))}
@@ -232,17 +232,17 @@ function Trust() {
 function CTA() {
   const navigate = useNavigate()
   return (
-    <section className="py-20 gradient-navy">
+    <section className="py-24 bg-subtle border-y border-border-subtle">
       <div className="container mx-auto px-4 max-w-3xl text-center">
-        <h2 className="text-3xl font-bold text-surface mb-4">Ready to Connect to Better Care?</h2>
-        <p className="text-surface/70 mb-8 text-lg">
+        <h2 className="text-3xl md:text-4xl font-bold text-text-primary mb-4">Ready to Connect to Better Care?</h2>
+        <p className="text-text-muted mb-8 text-lg">
           Join thousands of patients and healthcare workers using CareConnect to strengthen community health.
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <Button size="xl" className="bg-teal hover:bg-teal/90 text-white" onClick={() => navigate('/login')}>
+          <Button size="xl" className="w-full sm:w-auto bg-brand-default hover:bg-brand-hover text-white shadow-sm" onClick={() => navigate('/login')}>
             Get Started — It's Free
           </Button>
-          <Button size="xl" variant="outline" className="border-surface/20 text-surface hover:bg-surface/10" onClick={() => navigate('/login?tab=doctor')}>
+          <Button size="xl" variant="outline" className="w-full sm:w-auto border-border-subtle text-text-primary hover:bg-canvas bg-surface-elevated shadow-sm" onClick={() => navigate('/login?tab=doctor')}>
             I'm a Healthcare Provider
           </Button>
         </div>
@@ -258,7 +258,7 @@ function Footer() {
         <div className="flex flex-col md:flex-row justify-between items-start gap-8">
           <div>
             <div className="flex items-center gap-2 text-surface font-bold text-xl mb-2">
-              <HeartPulse className="w-6 h-6 text-teal" />
+              <HeartPulse className="w-6 h-6 text-brand-default" />
               CareConnect
             </div>
             <p className="text-surface/50 text-sm max-w-xs">
@@ -305,7 +305,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 bg-navy/95 backdrop-blur-sm border-b border-surface/10">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between max-w-6xl">
           <div className="flex items-center gap-2 text-surface font-bold text-xl">
-            <HeartPulse className="w-7 h-7 text-teal" />
+            <HeartPulse className="w-7 h-7 text-brand-default" />
             CareConnect
           </div>
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-surface/60">
@@ -316,7 +316,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-2">
             <LanguageSwitcher dark={true} />
             <Button variant="ghost" className="text-surface/60 hover:text-surface hover:bg-surface/10" onClick={() => navigate('/login')}>Log In</Button>
-            <Button className="bg-teal hover:bg-teal/90 text-white" onClick={() => navigate('/register')}>Get Care</Button>
+            <Button className="bg-brand-default hover:bg-brand-hover/90 text-white" onClick={() => navigate('/register')}>Get Care</Button>
           </div>
         </div>
       </header>

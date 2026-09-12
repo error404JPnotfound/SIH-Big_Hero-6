@@ -110,7 +110,7 @@ export default function LanguageSwitcher({ dark = false }) {
           'notranslate flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all duration-150',
           dark
             ? 'text-surface/70 hover:bg-surface/10 hover:text-surface border border-surface/20'
-            : 'text-muted hover:bg-bg hover:text-text border border-border'
+            : 'text-text-muted hover:bg-bg hover:text-text border border-border-subtle'
         )}
       >
         <Globe className="w-4 h-4 flex-shrink-0" />
@@ -155,15 +155,15 @@ export default function LanguageSwitcher({ dark = false }) {
                     'w-full flex items-center justify-between px-3 py-2.5 text-sm transition-colors duration-100',
                     isActive
                       ? dark
-                        ? 'bg-teal/25 text-teal font-semibold'
-                        : 'bg-teal/10 text-teal font-semibold'
+                        ? 'bg-brand-default/25 text-brand-default font-semibold'
+                        : 'bg-brand-default/10 text-brand-default font-semibold'
                       : dark
                         ? 'text-white/70 hover:bg-white/10 hover:text-white'
                         : 'text-gray-700 hover:bg-gray-50'
                   )}
                 >
                   <span className="font-medium">{lang.native}</span>
-                  <span className={cn('text-xs', isActive ? 'text-teal' : 'text-gray-400')}>
+                  <span className={cn('text-xs', isActive ? 'text-brand-default' : 'text-gray-400')}>
                     {lang.label}
                   </span>
                 </button>
