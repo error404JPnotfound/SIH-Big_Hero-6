@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
@@ -14,11 +14,22 @@ const ROLES = [
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { signInWithEmail, signInWithPhone, verifyOtp, loginDemo } = useAuth()
 
   const [step, setStep]               = useState('role')     // role | login | otp
   const [tab, setTab]                 = useState('phone')    // phone | email
   const [selectedRole, setSelectedRole] = useState(null)
+
+  // Auto-select role from URL query param (e.g. /login?role=patient)
+  useEffect(() => {
+    const roleParam = searchParams.get('role')
+    const validRole = ROLES.find(r => r.id === roleParam)
+    if (validRole) {
+      setSelectedRole(validRole.id)
+      setStep('login')
+    }
+  }, [searchParams])
 
   // Form fields
   const [phone, setPhone]       = useState('')
@@ -167,14 +178,18 @@ export default function LoginPage() {
           </div>
 
           {/* Back button */}
-          {step !== 'role' && (
-            <button
-              onClick={() => { setStep(step === 'otp' ? 'login' : 'role'); clearFeedback(); setOtp(['','','','','','']) }}
-              className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text mb-6 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" /> Back
-            </button>
-          )}
+          <button
+            onClick={() => {
+              if (step === 'otp') { setStep('login'); clearFeedback(); setOtp(['','','','','','']) }
+              else if (step === 'login' && searchParams.get('role')) { navigate('/') }
+              else if (step === 'login') { setStep('role'); clearFeedback() }
+              else { navigate('/') }
+            }}
+            className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text mb-6 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+
 
           {/* ── STEP 1: Role Selection ── */}
           {step === 'role' && (
