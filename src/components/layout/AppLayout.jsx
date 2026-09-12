@@ -149,9 +149,9 @@ export default function AppLayout({ children, role }) {
       )}
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Top bar */}
-        <header className="h-14 bg-surface-elevated border-b border-border-subtle flex items-center gap-3 px-4 flex-shrink-0 z-10">
+        <header className="h-14 bg-surface-elevated border-b border-border-subtle flex items-center gap-3 px-4 flex-shrink-0 relative z-40">
           <button
             className="lg:hidden p-2 rounded-lg hover:bg-bg text-text-muted"
             onClick={() => setSidebarOpen(true)}
