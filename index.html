@@ -9,9 +9,58 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <!--
+      Google Translate styles:
+      - Hide the default floating toolbar/banner Google injects at the top
+      - Keep body position intact (Google shifts body top by ~40px otherwise)
+    -->
+    <style>
+      /* Remove Google Translate bar */
+      .goog-te-banner-frame.skiptranslate { display: none !important; }
+      .goog-te-banner-frame               { display: none !important; }
+      .skiptranslate                       { display: none !important; }
+      body                                 { top: 0px !important; }
+
+      /* Hide "powered by Google" branding in the hidden widget */
+      .goog-logo-link, .goog-te-gadget-icon { display: none !important; }
+      .goog-te-gadget                        { font-size: 0 !important; }
+
+      /* Prevent Google from adding scrollbar offset */
+      html body { overflow-x: initial !important; }
+    </style>
   </head>
   <body>
+    <!-- Hidden div where the Google Translate widget mounts -->
+    <div id="google_translate_element" style="display:none; visibility:hidden; height:0; overflow:hidden;"></div>
+
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+
+    <!--
+      Google Translate initialisation.
+      autoDisplay: false  — don't show the built-in selector UI.
+      The widget still processes the `googtrans` cookie on every page load,
+      which is what our custom LanguageSwitcher.jsx sets before reloading.
+    -->
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement(
+          {
+            pageLanguage: 'en',
+            includedLanguages: 'en,hi,gu,mr,pa,bn,ta,te,kn,ml,ur,or,as',
+            layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+            autoDisplay: false,
+          },
+          'google_translate_element'
+        );
+      }
+    </script>
+    <!-- Load the Google Translate script — must NOT be async/deferred so the
+         cookie is read synchronously before React hydrates -->
+    <script
+      type="text/javascript"
+      src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"
+    ></script>
   </body>
 </html>

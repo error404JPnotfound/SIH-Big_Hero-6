@@ -6,6 +6,7 @@ import {
   Building2, ClipboardList, AlertCircle, Star, MapPin, Clock, TrendingUp
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
+import LanguageSwitcher from '../../components/ui/LanguageSwitcher'
 
 function Hero() {
   const navigate = useNavigate()
@@ -313,6 +314,7 @@ export default function LandingPage() {
             <a href="#services" className="hover:text-surface transition-colors">Services</a>
           </nav>
           <div className="flex items-center gap-2">
+            <LanguageSwitcher dark={true} />
             <Button variant="ghost" className="text-surface/60 hover:text-surface hover:bg-surface/10" onClick={() => navigate('/login')}>Log In</Button>
             <Button className="bg-teal hover:bg-teal/90 text-white" onClick={() => navigate('/register')}>Get Care</Button>
           </div>

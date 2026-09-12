@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
+import LanguageSwitcher from '../ui/LanguageSwitcher'
 import {
   HeartPulse, LayoutDashboard, Calendar, ClipboardList, Users, Activity,
   FileText, Pill, Stethoscope, Bell, Settings, LogOut, Menu, X, ChevronDown,
@@ -162,6 +163,9 @@ export default function AppLayout({ children, role }) {
             <span className="hidden sm:inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-warning-bg text-warning border border-warning/30">
               Demo Mode
             </span>
+
+            {/* Language Switcher */}
+            <LanguageSwitcher dark={false} />
 
             {/* Notifications */}
             <button className="relative p-2 rounded-lg hover:bg-bg text-muted hover:text-text">
