@@ -15,11 +15,22 @@
   --color-brand-active:       #0F766E;
   --color-brand-light:        #CCFBF1;
 
+  --color-teal:               #0D9488;
+  --color-teal-hover:         #0F766E;
+  --color-navy:               #0F172A;
+  --color-bg:                 #F8FAFC;
+  --color-surface:            #FFFFFF;
+  --color-border:             #E2E8F0;
+  --color-muted:              #64748B;
+  --color-text:               #0F172A;
+
   --color-brand-secondary:    #334155;
   --color-brand-secondary-light:#F1F5F9;
 
   --color-status-success:     #15803D;
   --color-status-success-bg:  #DCFCE7;
+  --color-success:            #15803D;
+  --color-success-bg:         #DCFCE7;
   --color-status-warning:     #B45309;
   --color-status-warning-bg:  #FEF3C7;
   --color-status-critical:    #B91C1C;

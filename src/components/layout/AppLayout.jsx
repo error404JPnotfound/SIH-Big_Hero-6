@@ -14,7 +14,6 @@ const NAV_PATIENT = [
   { href: '/patient/facilities',   icon: MapPin,          label: 'Find Healthcare' },
   { href: '/patient/appointments', icon: Calendar,        label: 'Appointments' },
   { href: '/patient/records',      icon: FileText,        label: 'My Records' },
-  { href: '/patient/referrals',    icon: ClipboardList,   label: 'Referrals' },
   { href: '/patient/diagnostics',  icon: Activity,        label: 'Diagnostics' },
   { href: '/patient/medicines',    icon: Pill,            label: 'Medicines' },
   { href: '/patient/queue',        icon: Users,           label: 'My Queue' },
