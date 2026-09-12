@@ -170,7 +170,7 @@ export default function AppLayout({ children, role }) {
     <div className="flex h-screen bg-canvas overflow-hidden">
       {/* Sign Out Confirmation Modal */}
       {showSignOutModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-navy/60 backdrop-blur-sm"
