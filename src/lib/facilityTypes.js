@@ -55,6 +55,23 @@ const DEFAULT_CONFIG = {
   label: 'Healthcare Facility',
 }
 
+export const DB_TO_DISPLAY_TYPE = {
+  'district_hospital': 'District Hospital',
+  'rural_hospital': 'CHC',
+  'phc': 'PHC',
+  'sub_centre': 'Sub-Centre',
+  'specialist_centre': 'Diagnostic Centre',
+}
+
+export const DISPLAY_TO_DB_TYPE = {
+  'District Hospital': 'district_hospital',
+  'CHC': 'rural_hospital',
+  'PHC': 'phc',
+  'Sub-Centre': 'sub_centre',
+  'Diagnostic Centre': 'specialist_centre',
+}
+
 export function getTypeConfig(type) {
-  return FACILITY_TYPE_CONFIG[type] || DEFAULT_CONFIG
+  const normalized = DB_TO_DISPLAY_TYPE[type] || type
+  return FACILITY_TYPE_CONFIG[normalized] || DEFAULT_CONFIG
 }

@@ -9,7 +9,8 @@
 import axios from 'axios';
 import { MOCK_FACILITIES, MOCK_DOCTORS_BY_FACILITY, MOCK_APPOINTMENTS } from '../lib/mockData';
 import { getFacilities as getDbFacilities, getFacilityById as getDbFacilityById, getDoctorsByFacility as getDbDoctors } from '../lib/db';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { DB_TO_DISPLAY_TYPE, DISPLAY_TO_DB_TYPE } from '../lib/facilityTypes';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -137,20 +138,6 @@ export const facilityService = {
       // Backend not running or failed; fall back gracefully
     }
 
-    // Fallback to Supabase / MockData
-    let data;
-    if (isSupabaseConfigured()) {
-      try {
-        data = await getDbFacilities();
-      } catch {
-        data = MOCK_FACILITIES;
-      }
-    } else {
-      data = MOCK_FACILITIES;
-    }
-
-    if (!data || data.length === 0) data = MOCK_FACILITIES;
-
     const {
       search = '',
       type = '',
@@ -165,13 +152,70 @@ export const facilityService = {
     const pLng = lng != null ? parseFloat(lng) : null;
     const hasCoords = pLat != null && pLng != null && !isNaN(pLat) && !isNaN(pLng);
 
-    let result = data.map(f => ({
-      ...f,
-      id: f.id || f._id,
-      distanceKm: hasCoords && f.latitude && f.longitude
-        ? calculateDistanceKm(pLat, pLng, f.latitude, f.longitude)
-        : null
-    }));
+    // 1. Try Supabase PostGIS / SQL get_nearby_facilities RPC if coords are available
+    if (isSupabaseConfigured() && hasCoords) {
+      try {
+        const dbType = DISPLAY_TO_DB_TYPE[type] || type || null;
+        const radius = maxDistance > 0 ? maxDistance : 40;
+        const { data: rpcFacilities, error: rpcError } = await supabase.rpc('get_nearby_facilities', {
+          user_lat: pLat,
+          user_lng: pLng,
+          radius_km: radius,
+          facility_filter: dbType,
+          search_query: search.trim() || null,
+        });
+
+        if (!rpcError && Array.isArray(rpcFacilities) && rpcFacilities.length > 0) {
+          return rpcFacilities.map(f => {
+            const mapped = {
+              ...f,
+              id: f.id,
+              latitude: Number(f.lat),
+              longitude: Number(f.lng),
+              type: DB_TO_DISPLAY_TYPE[f.type] || f.type,
+              emergencyAvailable: f.emergency_available ?? true,
+              distanceKm: f.distance_km != null ? Number(f.distance_km) : calculateDistanceKm(pLat, pLng, f.lat, f.lng),
+              phone: f.phone || '+91 1800-180-1104',
+              address: f.address || `${f.name}, ${f.district || ''}`,
+            };
+            liveOsmCache.set(f.id, mapped);
+            return mapped;
+          });
+        }
+      } catch (rpcEx) {
+        // Fall back to table query or mock data
+      }
+    }
+
+    // 2. Fallback to Supabase table / MockData
+    let data;
+    if (isSupabaseConfigured()) {
+      try {
+        data = await getDbFacilities();
+      } catch {
+        data = MOCK_FACILITIES;
+      }
+    } else {
+      data = MOCK_FACILITIES;
+    }
+
+    if (!data || data.length === 0) data = MOCK_FACILITIES;
+
+    let result = data.map(f => {
+      const latVal = f.latitude ?? (f.lat != null ? Number(f.lat) : null);
+      const lngVal = f.longitude ?? (f.lng != null ? Number(f.lng) : null);
+      return {
+        ...f,
+        id: f.id || f._id,
+        latitude: latVal,
+        longitude: lngVal,
+        type: DB_TO_DISPLAY_TYPE[f.type] || f.type,
+        emergencyAvailable: f.emergencyAvailable ?? f.emergency_available ?? false,
+        distanceKm: hasCoords && latVal != null && lngVal != null
+          ? calculateDistanceKm(pLat, pLng, latVal, lngVal)
+          : null
+      };
+    });
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -179,6 +223,7 @@ export const facilityService = {
         f.name?.toLowerCase().includes(q) ||
         f.village?.toLowerCase().includes(q) ||
         f.district?.toLowerCase().includes(q) ||
+        f.state?.toLowerCase().includes(q) ||
         f.address?.toLowerCase().includes(q) ||
         f.services?.some(s => s.toLowerCase().includes(q))
       );
@@ -187,7 +232,7 @@ export const facilityService = {
     if (type) result = result.filter(f => f.type === type);
     if (district) result = result.filter(f => f.district === district);
     if (emergency) result = result.filter(f => f.emergencyAvailable);
-    if (maxDistance > 0 && hasCoords) {
+    if (maxDistance > 0 && hasCoords && !search.trim()) {
       result = result.filter(f => f.distanceKm == null || f.distanceKm <= maxDistance);
     }
 
@@ -277,6 +322,13 @@ export const facilityService = {
           getDbDoctors(id)
         ]);
         if (fac) {
+          const formattedFac = {
+            ...fac,
+            latitude: fac.latitude ?? (fac.lat != null ? Number(fac.lat) : null),
+            longitude: fac.longitude ?? (fac.lng != null ? Number(fac.lng) : null),
+            type: DB_TO_DISPLAY_TYPE[fac.type] || fac.type,
+            emergencyAvailable: fac.emergencyAvailable ?? fac.emergency_available ?? true,
+          };
           const formattedDocs = (docs || []).map(d => ({
             id: d.id,
             name: d.profiles?.full_name || 'Dr. Unknown',
@@ -284,7 +336,7 @@ export const facilityService = {
             isAvailable: d.is_available,
             phone: d.profiles?.phone,
           }));
-          return { facility: fac, doctors: formattedDocs };
+          return { facility: formattedFac, doctors: formattedDocs };
         }
       } catch {
         // Continue to mock fallback

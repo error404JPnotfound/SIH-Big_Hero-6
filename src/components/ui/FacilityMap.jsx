@@ -6,7 +6,7 @@
  * - Draws directions from the user's current location when a facility is clicked.
  * - Offers direct 1-click turn-by-turn navigation links.
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Tooltip, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -23,40 +23,36 @@ function createFacilityIcon(type, isSelected) {
   const halo = isSelected
     ? `<div style="
         position:absolute;inset:-6px;border-radius:50%;
-        background:${cfg.color};opacity:0.3;
+        background:${cfg.color};opacity:0.35;
         animation:haloPing 1.8s cubic-bezier(0,0,0.2,1) infinite;
       "></div>`
     : ''
 
   return L.divIcon({
-    className: 'facility-marker-icon',
+    className: 'custom-facility-marker',
     html: `
-      <div style="position:relative;width:${size}px;height:${size + 10}px;display:flex;flex-direction:column;align-items:center;cursor:pointer;">
+      <div style="position:relative;width:${size}px;height:${size}px;">
         ${halo}
         <div style="
           width:${size}px;height:${size}px;
           background:${cfg.color};
+          border:2.5px solid #ffffff;
           border-radius:50% 50% 50% 0;
           transform:rotate(-45deg);
-          border:2.5px solid #ffffff;
-          box-shadow:${isSelected ? '0 6px 16px rgba(0,0,0,0.35)' : '0 2px 8px rgba(0,0,0,0.25)'};
+          box-shadow:0 3px 10px rgba(0,0,0,0.3);
           display:flex;align-items:center;justify-content:center;
-          transition:transform 0.2s ease;
+          transition:transform 0.15s ease;
         ">
           <div style="
-            width:${innerSize}px;height:${innerSize}px;
-            background:#ffffff;
-            border-radius:50%;
-            display:flex;align-items:center;justify-content:center;
             transform:rotate(45deg);
-            box-shadow:inset 0 1px 2px rgba(0,0,0,0.2);
+            width:${innerSize}px;height:${innerSize}px;
+            display:flex;align-items:center;justify-content:center;
           ">
             <span style="
-              color:${cfg.color};
-              font-family:Inter,system-ui,sans-serif;
+              color:#ffffff;
+              font-family:Inter,sans-serif;
+              font-size:${isSelected ? '11px' : '9px'};
               font-weight:800;
-              font-size:${isSelected ? '10px' : '8.5px'};
-              line-height:1;
               letter-spacing:-0.5px;
             ">${cfg.code}</span>
           </div>
@@ -66,9 +62,9 @@ function createFacilityIcon(type, isSelected) {
         @keyframes haloPing{0%{transform:scale(0.9);opacity:0.4}70%,100%{transform:scale(1.35);opacity:0}}
       </style>
     `,
-    iconSize: [size, size + 10],
-    iconAnchor: [size / 2, size + 8],
-    popupAnchor: [0, -(size + 10)],
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size],
+    popupAnchor: [0, -size],
   })
 }
 
@@ -98,7 +94,7 @@ const YOU_ICON = L.divIcon({
 })
 
 // ── Auto-pan / Auto-fit bounds controller ──────────────────────────────────────
-function MapController({ selectedFacility, patientLocation, center, zoom }) {
+function MapController({ facilities = [], selectedFacility, patientLocation, center, zoom }) {
   const map = useMap()
 
   useEffect(() => {
@@ -112,12 +108,35 @@ function MapController({ selectedFacility, patientLocation, center, zoom }) {
       } else {
         map.flyTo([selectedFacility.latitude, selectedFacility.longitude], 15, { duration: 0.8 })
       }
+    } else if (facilities.length > 0) {
+      const validPoints = facilities
+        .filter(f => f.latitude != null && f.longitude != null)
+        .map(f => [f.latitude, f.longitude])
+
+      if (validPoints.length > 0) {
+        const pLat = patientLocation?.lat ?? center[0]
+        const pLng = patientLocation?.lng ?? center[1]
+        const dLat = Math.abs(validPoints[0][0] - pLat)
+        const dLng = Math.abs(validPoints[0][1] - pLng)
+
+        // If returned facilities are far from current location (> 50 km), pan/fit to them!
+        if (dLat > 0.5 || dLng > 0.5) {
+          map.fitBounds(validPoints, { padding: [40, 40], maxZoom: 13, duration: 0.8 })
+          return
+        }
+      }
+
+      if (patientLocation?.lat && patientLocation?.lng) {
+        map.flyTo([patientLocation.lat, patientLocation.lng], 13, { duration: 0.6 })
+      } else {
+        map.flyTo(center, zoom, { duration: 0.5 })
+      }
     } else if (patientLocation?.lat && patientLocation?.lng) {
       map.flyTo([patientLocation.lat, patientLocation.lng], 13, { duration: 0.6 })
     } else {
       map.flyTo(center, zoom, { duration: 0.5 })
     }
-  }, [selectedFacility, patientLocation, center, zoom, map])
+  }, [selectedFacility, patientLocation, center, zoom, map, facilities])
 
   return null
 }
@@ -132,6 +151,14 @@ export default function FacilityMap({
   zoom = 12,
 }) {
   const markerRefs = useRef({})
+  const [legendMinimized, setLegendMinimized] = useState(false)
+
+  // Auto-minimize the Facility Types bar when a facility is clicked/selected
+  useEffect(() => {
+    if (selectedFacility) {
+      setLegendMinimized(true)
+    }
+  }, [selectedFacility])
 
   // Auto-open popup when facility is selected
   useEffect(() => {
@@ -175,6 +202,7 @@ export default function FacilityMap({
         />
 
         <MapController
+          facilities={facilities}
           selectedFacility={selectedFacility}
           patientLocation={patientLocation}
           center={center}
@@ -210,7 +238,10 @@ export default function FacilityMap({
               icon={createFacilityIcon(f.type, isSelected)}
               ref={el => { if (el) markerRefs.current[facId] = el }}
               eventHandlers={{
-                click: () => onSelectFacility?.(f)
+                click: () => {
+                  onSelectFacility?.(f)
+                  setLegendMinimized(true)
+                }
               }}
               zIndexOffset={isSelected ? 1000 : 100}
             >
@@ -388,20 +419,60 @@ export default function FacilityMap({
         </div>
       )}
 
-      {/* Map Legend: Facilities by Type */}
-      <div className="absolute bottom-4 left-4 bg-surface/95 backdrop-blur-sm rounded-xl p-3 shadow-lg border border-border z-[1000] text-xs space-y-1.5">
-        <p className="font-bold text-navy text-[11px] uppercase tracking-wider mb-1">Facility Types</p>
-        {Object.entries(FACILITY_TYPE_CONFIG).map(([label, cfg]) => (
-          <div key={label} className="flex items-center gap-2">
-            <span
-              className="w-4 h-4 rounded text-[9px] font-bold text-white flex items-center justify-center flex-shrink-0 shadow-xs"
-              style={{ background: cfg.color }}
-            >
-              {cfg.code}
+      {/* Map Legend: Facilities by Type (Collapsible) */}
+      <div className="absolute bottom-4 left-4 bg-surface/95 backdrop-blur-md rounded-xl shadow-lg border border-border z-[1000] text-xs transition-all duration-200">
+        {legendMinimized ? (
+          <button
+            type="button"
+            onClick={() => setLegendMinimized(false)}
+            className="flex items-center gap-2 px-3 py-2 text-navy font-semibold hover:bg-slate-50/80 rounded-xl transition-all cursor-pointer group"
+            title="Expand Facility Types"
+          >
+            <span className="flex items-center gap-1.5 text-[11px] font-bold text-navy">
+              <span className="w-2 h-2 rounded-full bg-teal animate-pulse"></span>
+              Facility Types
             </span>
-            <span className="text-muted text-[11px]">{label}</span>
+            <div className="flex items-center gap-1 ml-0.5">
+              {Object.values(FACILITY_TYPE_CONFIG).map(cfg => (
+                <span
+                  key={cfg.code}
+                  className="w-3.5 h-3.5 rounded text-[8px] font-bold text-white flex items-center justify-center flex-shrink-0 shadow-xs"
+                  style={{ background: cfg.color }}
+                >
+                  {cfg.code}
+                </span>
+              ))}
+            </div>
+            <span className="text-muted group-hover:text-navy text-[10px] ml-0.5 font-bold transition-transform">
+              ▲
+            </span>
+          </button>
+        ) : (
+          <div className="p-3 space-y-1.5 min-w-[175px]">
+            <div className="flex items-center justify-between pb-1.5 mb-1 border-b border-border/60">
+              <p className="font-bold text-navy text-[11px] uppercase tracking-wider">Facility Types</p>
+              <button
+                type="button"
+                onClick={() => setLegendMinimized(true)}
+                className="text-muted hover:text-navy text-[11px] p-0.5 rounded hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Minimize bar"
+              >
+                ▼
+              </button>
+            </div>
+            {Object.entries(FACILITY_TYPE_CONFIG).map(([label, cfg]) => (
+              <div key={label} className="flex items-center gap-2">
+                <span
+                  className="w-4 h-4 rounded text-[9px] font-bold text-white flex items-center justify-center flex-shrink-0 shadow-xs"
+                  style={{ background: cfg.color }}
+                >
+                  {cfg.code}
+                </span>
+                <span className="text-muted text-[11px]">{label}</span>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </div>
   )
