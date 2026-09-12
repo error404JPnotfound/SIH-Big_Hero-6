@@ -4,7 +4,7 @@
  * Main patient dashboard. All data fetched from Supabase — no mock data.
  * Loads: upcoming appointments, active referrals, latest vitals, follow-up counts.
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import AppLayout from '../../components/layout/AppLayout'
@@ -23,6 +23,7 @@ import {
   getMyVitals,
   getMyFollowUps,
 } from '../../lib/db'
+import { appointmentService } from '../../services/api'
 
 // ── Helper: format vitals value safely ───────────────────────────────────────
 function fmtBP(v)  { return v?.bp_systolic && v?.bp_diastolic ? `${v.bp_systolic}/${v.bp_diastolic}` : '—' }
@@ -51,10 +52,10 @@ function VitalCard({ icon: Icon, label, value, unit, status = 'normal' }) {
 
 // ── Appointment Card ──────────────────────────────────────────────────────────
 function AppointmentCard({ appt, onView }) {
-  const date   = appt.scheduled_at ? new Date(appt.scheduled_at) : null
-  const doctor = appt.doctors?.profiles?.full_name || 'Attending Doctor'
-  const fac    = appt.facilities?.name || '—'
-  const qNo    = appt.queues?.[0]?.queue_number || '—'
+  const date   = appt.dateObj || (appt.scheduled_at ? new Date(appt.scheduled_at) : (appt.date ? new Date(`${appt.date}T${appt.time || appt.timeSlot || '09:00'}`) : null))
+  const doctor = appt.doctorName || appt.doctors?.profiles?.full_name || 'Attending Doctor'
+  const fac    = appt.facilityName || appt.facilities?.name || '—'
+  const qNo    = appt.queueNumber || appt.queues?.[0]?.queue_number || '—'
   const status = appt.status || 'scheduled'
   const statusVariant = { confirmed: 'success', scheduled: 'success', pending: 'warning', cancelled: 'critical', completed: 'outline' }
   const borderTone    = { confirmed: 'border-status-success', scheduled: 'border-status-success', pending: 'border-status-warning', cancelled: 'border-status-critical', completed: 'border-border' }
@@ -62,7 +63,7 @@ function AppointmentCard({ appt, onView }) {
   return (
     <div className={`relative overflow-hidden flex flex-col sm:flex-row sm:items-center gap-4 p-5 bg-surface-elevated rounded-2xl shadow-sm hover:shadow-md transition-all border-l-4 ${borderTone[status] || 'border-border'}`}>
       <div className="flex flex-col items-center justify-center text-center bg-canvas rounded-xl w-14 h-14 flex-shrink-0">
-        {date ? (
+        {date && !isNaN(date.getTime()) ? (
           <>
             <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">{date.toLocaleString('en', { month: 'short' })}</span>
             <span className="text-xl font-black text-text-primary leading-none mt-0.5">{date.getDate()}</span>
@@ -74,11 +75,13 @@ function AppointmentCard({ appt, onView }) {
           <span className="font-bold text-text-primary text-base">{doctor}</span>
           <Badge variant={statusVariant[status] || 'default'}>{status}</Badge>
         </div>
-        <p className="text-sm text-text-muted">{fac} · {appt.reason || 'Consultation'}</p>
+        <p className="text-sm text-text-muted">{fac} · {appt.reason || appt.symptoms || 'Consultation'}</p>
         <div className="flex items-center gap-4 mt-2 text-xs font-medium text-text-muted">
-          {date && <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />{date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>}
+          {date && !isNaN(date.getTime()) && (
+            <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />{date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+          )}
           <span className="flex items-center gap-1.5">Queue: <strong className="text-text-primary">{qNo}</strong></span>
-          <span className="capitalize px-2 py-0.5 bg-canvas rounded-md border border-border-subtle">{appt.mode?.replace('_', '-') || '—'}</span>
+          <span className="capitalize px-2 py-0.5 bg-canvas rounded-md border border-border-subtle">{appt.mode?.replace('_', '-') || appt.consultationType || 'in-person'}</span>
         </div>
       </div>
       <Button size="sm" variant="ghost" className="w-full sm:w-auto mt-2 sm:mt-0 bg-subtle hover:bg-brand-light text-brand-default" onClick={onView}>Details</Button>
@@ -90,16 +93,14 @@ function AppointmentCard({ appt, onView }) {
 function QuickActions({ navigate }) {
   const actions = [
     { label: 'Book Appt', icon: Calendar, color: 'text-brand-default', bg: 'bg-subtle', hover: 'hover:bg-brand-default hover:text-white', href: '/patient/appointments' },
-    { label: 'Telehealth', icon: PhoneCall, color: 'text-brand-secondary', bg: 'bg-brand-secondary-light', hover: 'hover:bg-brand-secondary hover:text-white', href: '/patient/appointments?mode=tele' },
     { label: 'Records', icon: FileText, color: 'text-status-success', bg: 'bg-status-success-bg', hover: 'hover:bg-status-success hover:text-white', href: '/patient/records' },
-    { label: 'Referrals', icon: ClipboardList, color: 'text-status-warning', bg: 'bg-status-warning-bg', hover: 'hover:bg-status-warning hover:text-white', href: '/patient/appointments?tab=referrals' },
     { label: 'Medicines', icon: Pill, color: 'text-brand-default', bg: 'bg-subtle', hover: 'hover:bg-brand-default hover:text-white', href: '/patient/medicines' },
     { label: 'Diagnostics', icon: Activity, color: 'text-brand-secondary', bg: 'bg-brand-secondary-light', hover: 'hover:bg-brand-secondary hover:text-white', href: '/patient/diagnostics' },
     { label: 'My Queue', icon: Clock, color: 'text-status-success', bg: 'bg-status-success-bg', hover: 'hover:bg-status-success hover:text-white', href: '/patient/queue' },
     { label: 'Emergency', icon: AlertCircle, color: 'text-status-critical', bg: 'bg-status-critical-bg', hover: 'hover:bg-status-critical hover:text-white', href: '/patient/emergency' },
   ]
   return (
-    <div className="grid grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
+    <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4">
       {actions.map(a => (
         <button
           key={a.label}
@@ -136,32 +137,84 @@ export default function PatientDashboard() {
     setLoading(true)
     Promise.allSettled([
       getMyAppointments(),
+      appointmentService.getAll(),
       getMyReferrals(),
       getMyVitals(1),
       getMyFollowUps(),
-    ]).then(([apptRes, refRes, vitalsRes, fuRes]) => {
-      if (apptRes.status === 'fulfilled') setAppointments(apptRes.value || [])
+    ]).then(([dbApptRes, apiApptRes, refRes, vitalsRes, fuRes]) => {
+      const listA = dbApptRes.status === 'fulfilled' ? (dbApptRes.value || []) : []
+      const listB = apiApptRes.status === 'fulfilled' ? (apiApptRes.value || []) : []
+      const seen = new Set()
+      const merged = []
+      for (const a of [...listA, ...listB]) {
+        const id = a.id || a._id
+        if (id && !seen.has(id)) {
+          seen.add(id)
+          merged.push(a)
+        } else if (!id) {
+          merged.push(a)
+        }
+      }
+      setAppointments(merged)
       if (refRes.status  === 'fulfilled') setReferrals(refRes.value   || [])
       if (vitalsRes.status === 'fulfilled' && vitalsRes.value?.length) setVitals(vitalsRes.value[0])
       if (fuRes.status   === 'fulfilled') setFollowUps(fuRes.value    || [])
     }).finally(() => setLoading(false))
   }, [authLoading, user])
 
-  // Derive dashboard values
-  const todayStr    = new Date().toISOString().split('T')[0]
-  const upcoming    = appointments.filter(a => {
-    const d = a.scheduled_at?.split('T')[0]
-    return d >= todayStr && !['cancelled','completed'].includes(a.status)
-  })
-  const nextAppt    = upcoming[0]
-  const nextApptFac = nextAppt?.facilities?.name || ''
-  const nextApptTime = nextAppt ? new Date(nextAppt.scheduled_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : null
-  const nextApptDate = nextAppt ? new Date(nextAppt.scheduled_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : null
+  // Derive normalized appointments
+  const normalizedAppointments = useMemo(() => {
+    return appointments.map(a => {
+      let dateObj = null
+      if (a.scheduled_at) {
+        dateObj = new Date(a.scheduled_at)
+      } else if (a.date) {
+        const timeStr = a.time || a.timeSlot || '09:00'
+        dateObj = new Date(`${a.date}T${timeStr}`)
+      }
+
+      const doctorName = a.doctor || a.doctorName || a.doctors?.profiles?.full_name || 'Attending Doctor'
+      const facilityName = a.facility || a.facilityName || a.facilities?.name || 'Healthcare Centre'
+      const queueNumber = a.queueNo || a.queue_no || a.queues?.[0]?.queue_number || '—'
+      const status = (a.status || 'scheduled').toLowerCase()
+
+      return {
+        ...a,
+        dateObj,
+        doctorName,
+        facilityName,
+        queueNumber,
+        status,
+      }
+    })
+  }, [appointments])
+
+  // Real-time filter: only future appointments that are not cancelled or completed
+  const now = new Date()
+  const upcoming = useMemo(() => {
+    return normalizedAppointments
+      .filter(a => {
+        if (['cancelled', 'completed'].includes(a.status)) return false
+        if (!a.dateObj || isNaN(a.dateObj.getTime())) return false
+        return a.dateObj.getTime() >= now.getTime()
+      })
+      .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime())
+  }, [normalizedAppointments])
+
+  const nextAppt = upcoming[0] || null
+  const nextApptFac = nextAppt?.facilityName || ''
+  const nextApptDoctor = nextAppt?.doctorName || 'Doctor'
+  const nextApptTime = nextAppt?.dateObj
+    ? nextAppt.dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+    : null
+  const nextApptDate = nextAppt?.dateObj
+    ? nextAppt.dateObj.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
+    : null
 
   const activeRefs  = referrals.filter(r => !['completed','cancelled'].includes(r.status))
   const firstDept   = activeRefs[0]?.department || null
   const queueEntry  = upcoming[0]?.queues?.[0]
-  const queueNo     = queueEntry?.queue_number || '—'
+  const queueNo     = queueEntry?.queue_number || nextAppt?.queueNumber || '—'
 
   const dueSoonFU   = followUps.filter(f => f.status === 'due_soon' || f.status === 'overdue')
   const nextDueDate = dueSoonFU[0]?.next_due ? new Date(dueSoonFU[0].next_due).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : '—'
@@ -198,11 +251,11 @@ export default function PatientDashboard() {
                     {nextApptDate} at {nextApptTime}
                   </p>
                   <p className="text-white/80 text-xs mt-0.5">
-                    {nextAppt.doctors?.profiles?.full_name || 'Doctor'} · {nextApptFac}
+                    {nextApptDoctor} · {nextApptFac}
                   </p>
                 </>
               ) : (
-                <p className="text-white/80 text-sm">No upcoming appointments</p>
+                <p className="text-white/90 font-semibold text-sm">No upcoming appointments</p>
               )}
             </div>
           </div>
@@ -266,43 +319,6 @@ export default function PatientDashboard() {
                 <div className="space-y-4">
                   {upcoming.slice(0, 3).map(appt => (
                     <AppointmentCard key={appt.id} appt={appt} onView={() => navigate('/patient/appointments')} />
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* Active Referrals */}
-            <section>
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-lg font-bold text-text-primary">Active Referrals</h2>
-                <Button size="sm" variant="ghost" className="text-brand-default hover:bg-subtle" onClick={() => navigate('/patient/appointments?tab=referrals')}>View all</Button>
-              </div>
-              {loading ? (
-                <Skeleton className="h-28 rounded-2xl" />
-              ) : activeRefs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 bg-surface-elevated rounded-2xl border border-border-subtle text-center">
-                  <ClipboardList className="w-8 h-8 text-border mb-2" />
-                  <p className="text-sm text-text-muted">No active referrals</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-4">
-                  {activeRefs.slice(0, 2).map(ref => (
-                    <div
-                      key={ref.id}
-                      onClick={() => navigate('/patient/appointments?tab=referrals')}
-                      className="cursor-pointer relative overflow-hidden flex flex-col gap-3 p-5 bg-surface-elevated rounded-2xl shadow-sm border border-border-subtle hover:border-brand-default/30 transition-all hover:shadow-md"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="w-10 h-10 rounded-xl bg-status-warning-bg flex items-center justify-center flex-shrink-0">
-                          <ClipboardList className="w-5 h-5 text-status-warning" />
-                        </div>
-                        <Badge variant={ref.status === 'accepted' ? 'success' : 'warning'}>{ref.status}</Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-text-primary mb-1">{ref.to_fac?.name || '—'}</p>
-                        <p className="text-xs font-medium text-text-muted">{ref.department} · {ref.reason}</p>
-                      </div>
-                    </div>
                   ))}
                 </div>
               )}

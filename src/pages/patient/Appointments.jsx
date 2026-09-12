@@ -20,6 +20,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { appointmentService, facilityService, liveOsmCache } from '../../services/api'
+import { notificationService } from '../../services/notificationService'
 import { MOCK_FACILITIES, MOCK_DOCTORS_BY_FACILITY, MOCK_REFERRALS, MOCK_PATIENT } from '../../lib/mockData'
 import { getMyReferrals } from '../../lib/db'
 import {
@@ -470,6 +471,22 @@ function BookingModal({
 
       setConfirmedAppt(booked)
       onBooked?.(booked)
+
+      if (selectedReferral) {
+        notificationService.addNotification({
+          title: 'Referral Transmitted Successfully',
+          message: `Your referral REF-${selectedReferral.id.toUpperCase()} to ${selectedFacility?.name || 'Specialist Hospital'} (${selectedReferral.dept || 'Specialist'}) has been received by the specialist department.`,
+          link: '/patient/appointments?tab=referrals',
+          type: 'referral'
+        })
+      } else {
+        notificationService.addNotification({
+          title: 'Appointment Booked Successfully',
+          message: `Your appointment with ${selectedDoctor?.name || 'Doctor'} at ${selectedFacility?.name || 'Healthcare Facility'} is confirmed for ${date} at ${timeSlot}.`,
+          link: '/patient/appointments',
+          type: 'appointment'
+        })
+      }
     } catch (err) {
       setError(err.message || 'Failed to book appointment. Please try again.')
     } finally {
@@ -591,40 +608,7 @@ function BookingModal({
           )}
         </div>
 
-        {/* 2. Mode Toggle */}
-        <div>
-          <label className="block text-xs font-semibold text-navy mb-1.5">Consultation Type</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setConsultationType('in-person')}
-              className={cn(
-                'flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg border text-xs font-semibold transition-all',
-                consultationType === 'in-person'
-                  ? 'border-teal bg-teal/10 text-teal shadow-xs'
-                  : 'border-border bg-surface text-muted hover:border-teal/50'
-              )}
-            >
-              <User className="w-3.5 h-3.5" />
-              In-Person Visit
-            </button>
-            <button
-              type="button"
-              onClick={() => setConsultationType('teleconsultation')}
-              className={cn(
-                'flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg border text-xs font-semibold transition-all',
-                consultationType === 'teleconsultation'
-                  ? 'border-teal bg-teal/10 text-teal shadow-xs'
-                  : 'border-border bg-surface text-muted hover:border-teal/50'
-              )}
-            >
-              <Video className="w-3.5 h-3.5" />
-              Teleconsultation
-            </button>
-          </div>
-        </div>
-
-        {/* 3. Facility Selection */}
+        {/* 2. Facility Selection */}
         <div>
           <label className="block text-xs font-semibold text-navy mb-1.5">Healthcare Facility</label>
           <select
@@ -818,6 +802,12 @@ export default function Appointments() {
     try {
       await appointmentService.cancel(id)
       setAppointments(prev => prev.map(a => (a.id === id || a._id === id) ? { ...a, status: 'cancelled' } : a))
+      notificationService.addNotification({
+        title: 'Appointment Cancelled',
+        message: 'Your scheduled appointment has been cancelled.',
+        link: '/patient/appointments',
+        type: 'appointment'
+      })
     } catch (err) {
       alert('Failed to cancel appointment: ' + err.message)
     } finally {

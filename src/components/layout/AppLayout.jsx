@@ -8,6 +8,7 @@ import {
   FileText, Pill, Stethoscope, Bell, Settings, LogOut, Menu, X, ChevronDown,
   AlertCircle, ShieldCheck, TrendingUp, Building2, Search, MapPin
 } from 'lucide-react'
+import NotificationDropdown from './NotificationDropdown'
 
 const NAV_PATIENT = [
   { href: '/patient',              icon: LayoutDashboard, label: 'Dashboard' },
@@ -266,10 +267,7 @@ export default function AppLayout({ children, role }) {
             <LanguageSwitcher dark={false} />
 
             {/* Notifications */}
-            <button className="relative p-2 rounded-lg hover:bg-bg text-text-muted hover:text-text">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-status-critical rounded-full" />
-            </button>
+            <NotificationDropdown userId={user?.id} />
 
             {/* Avatar */}
             <div className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-bg cursor-pointer">
