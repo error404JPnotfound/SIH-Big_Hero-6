@@ -59,7 +59,7 @@ function NavItem({ href, icon: Icon, label, collapsed }) {
 }
 
 export default function AppLayout({ children, role }) {
-  const { user, logout } = useAuth()
+  const { user, logout, demoMode } = useAuth()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -257,7 +257,7 @@ export default function AppLayout({ children, role }) {
           <div className="ml-auto flex items-center gap-2">
             {/* Demo mode badge */}
             <span className="hidden sm:inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-status-warning-bg text-status-warning border border-status-warning/30">
-              Demo Mode
+              {demoMode ? 'Demo Mode' : 'Live'}
             </span>
 
             {/* Language Switcher */}

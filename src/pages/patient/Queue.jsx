@@ -12,7 +12,7 @@ import { Button } from '../../components/ui/Button'
 import { Alert, Skeleton } from '../../components/ui/Misc'
 import { getMyQueueEntry, getFacilityQueue, subscribeToQueue } from '../../lib/db'
 import { appointmentService } from '../../services/api'
-import { notificationService } from '../../services/notificationService'
+
 import { Users, Clock, RefreshCw, AlertCircle, CalendarX, Loader2 } from 'lucide-react'
 
 export default function Queue() {
@@ -117,26 +117,6 @@ export default function Queue() {
     : 0
 
   const hasQueue = myEntry != null
-
-  // Sync notification data dynamically according to My Queue tab
-  useEffect(() => {
-    if (hasQueue && myQueueNo && myQueueNo !== '—') {
-      const facName = myEntry?.facility?.name || 'Healthcare Facility'
-      const curNum = currentNo !== '—' ? currentNo : `A-${Math.max(1, (parseInt(myQueueNo.replace(/\D/g, '') || '2') - patientsAhead))}`
-
-      notificationService.syncQueueNotification({
-        hasQueue: true,
-        queueNumber: myQueueNo,
-        facilityName: facName,
-        currentNumber: curNum,
-        patientsAhead,
-        etaMinutes,
-        status: myEntry?.status || 'waiting'
-      }, user?.id)
-    } else if (!loading && !hasQueue) {
-      notificationService.syncQueueNotification({ hasQueue: false }, user?.id)
-    }
-  }, [hasQueue, myQueueNo, myEntry, currentNo, patientsAhead, etaMinutes, loading, user?.id])
 
   return (
     <AppLayout role="patient">

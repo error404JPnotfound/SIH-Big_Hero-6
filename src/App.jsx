@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import ProtectedRoute from './components/auth/ProtectedRoute'
 
 // Public pages
 import LandingPage from './pages/public/LandingPage'
@@ -33,6 +34,8 @@ import ReferralsAdmin from './pages/admin/Referrals'
 import MedicineStock from './pages/admin/MedicineStock'
 
 export default function App() {
+  const protect = (role, element) => <ProtectedRoute role={role}>{element}</ProtectedRoute>
+
   return (
     <AuthProvider>
       <Router>
@@ -43,31 +46,34 @@ export default function App() {
           <Route path="/register" element={<RegisterPage />} />
 
           {/* Patient */}
-          <Route path="/patient" element={<PatientDashboard />} />
-          <Route path="/patient/facilities" element={<FacilityFinder />} />
-          <Route path="/patient/facilities/:id" element={<FacilityDetails />} />
-          <Route path="/patient/appointments" element={<Appointments />} />
-          <Route path="/patient/queue" element={<Queue />} />
-          <Route path="/patient/medicines" element={<Medicines />} />
-          <Route path="/patient/referrals" element={<Navigate to="/patient/appointments?tab=referrals" replace />} />
-          <Route path="/patient/diagnostics" element={<Diagnostics />} />
-          <Route path="/patient/records" element={<Records />} />
+          <Route path="/patient" element={protect('patient', <PatientDashboard />)} />
+          <Route path="/patient/facilities" element={protect('patient', <FacilityFinder />)} />
+          <Route path="/patient/facilities/:id" element={protect('patient', <FacilityDetails />)} />
+          <Route path="/patient/appointments" element={protect('patient', <Appointments />)} />
+          <Route path="/patient/queue" element={protect('patient', <Queue />)} />
+          <Route path="/patient/medicines" element={protect('patient', <Medicines />)} />
+          <Route path="/patient/referrals" element={protect('patient', <Navigate to="/patient/appointments?tab=referrals" replace />)} />
+          <Route path="/patient/diagnostics" element={protect('patient', <Diagnostics />)} />
+          <Route path="/patient/records" element={protect('patient', <Records />)} />
 
           {/* Doctor */}
-          <Route path="/doctor" element={<DoctorDashboard />} />
-          <Route path="/doctor/queue" element={<DoctorQueue />} />
-          <Route path="/doctor/referrals" element={<PatientProfile />} />
-          <Route path="/doctor/follow-ups" element={<DoctorWorklist type="followUps" />} />
+          <Route path="/doctor" element={protect('doctor', <DoctorDashboard />)} />
+          <Route path="/doctor/queue" element={protect('doctor', <DoctorQueue />)} />
+          <Route path="/doctor/patients" element={protect('doctor', <PatientProfile />)} />
+          <Route path="/doctor/referrals" element={protect('doctor', <DoctorWorklist type="referrals" />)} />
+          <Route path="/doctor/diagnostics" element={protect('doctor', <DoctorWorklist type="diagnostics" />)} />
+          <Route path="/doctor/prescriptions" element={protect('doctor', <DoctorWorklist type="prescriptions" />)} />
+          <Route path="/doctor/follow-ups" element={protect('doctor', <DoctorWorklist type="followUps" />)} />
 
           {/* Admin */}
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/facilities" element={<Facilities />} />
-          <Route path="/admin/high-risk" element={<HighRisk />} />
-          <Route path="/admin/quality" element={<QualityMonitor />} />
-          <Route path="/admin/doctors" element={<Doctors />} />
-          <Route path="/admin/patients" element={<Patients />} />
-          <Route path="/admin/referrals" element={<ReferralsAdmin />} />
-          <Route path="/admin/medicines" element={<MedicineStock />} />
+          <Route path="/admin" element={protect('admin', <AdminDashboard />)} />
+          <Route path="/admin/facilities" element={protect('admin', <Facilities />)} />
+          <Route path="/admin/high-risk" element={protect('admin', <HighRisk />)} />
+          <Route path="/admin/quality" element={protect('admin', <QualityMonitor />)} />
+          <Route path="/admin/doctors" element={protect('admin', <Doctors />)} />
+          <Route path="/admin/patients" element={protect('admin', <Patients />)} />
+          <Route path="/admin/referrals" element={protect('admin', <ReferralsAdmin />)} />
+          <Route path="/admin/medicines" element={protect('admin', <MedicineStock />)} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

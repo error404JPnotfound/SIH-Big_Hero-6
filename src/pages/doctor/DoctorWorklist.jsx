@@ -1,3 +1,5 @@
+import { RecordEditor } from '../../components/RecordEditor'
+import { saveDiagnostic, saveFollowUp, followUpFields } from '../../lib/clinicalUpdates'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppLayout from '../../components/layout/AppLayout'
@@ -136,6 +138,7 @@ export default function DoctorWorklist({ type }) {
   const Icon = config.icon
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [editing, setEditing] = useState(null)
   const [data, setData] = useState({ referrals: [], diagnostics: [], prescriptions: [], followUps: [] })
   const isDoctorSession = user?.role === 'doctor' && !demoMode && user?.id && !String(user.id).endsWith('-demo')
 
@@ -164,6 +167,9 @@ export default function DoctorWorklist({ type }) {
 
   useEffect(() => {
     load()
+    const timer = setInterval(load, 15000)
+    window.addEventListener('focus', load)
+    return () => { clearInterval(timer); window.removeEventListener('focus', load) }
   }, [load])
 
   const rows = useMemo(() => data[type] || [], [data, type])
@@ -212,11 +218,12 @@ export default function DoctorWorklist({ type }) {
             <p className="py-16 text-center text-text-muted">{config.empty}</p>
           ) : (
             <div className="space-y-3">
-              {rows.map(row => <WorklistCard key={row.id} type={type} row={row} onPatient={onPatient} />)}
+              {rows.map(row => <div key={row.id}><WorklistCard type={type} row={row} onPatient={onPatient} />{['diagnostics','followUps'].includes(type) && <Button variant="outline" size="sm" className="mt-2" onClick={() => setEditing(row)}>{type === 'diagnostics' ? 'Update Result' : 'Update Follow-up'}</Button>}</div>)}
             </div>
           )}
         </div>
       </div>
+      {editing && <RecordEditor key={editing.id} title={type === 'diagnostics' ? 'Update Diagnostic Result' : 'Update Follow-up'} initial={editing} fields={type === 'diagnostics' ? [{name:'status',label:'Status',options:['requested','scheduled','sample_collected','processing','result_ready','reviewed']},{name:'result_notes',label:'Result notes'}] : followUpFields} onClose={() => setEditing(null)} onSave={async values => { await (type === 'diagnostics' ? saveDiagnostic(editing.id, values) : saveFollowUp(editing.id, values)); await load() }} />}
     </AppLayout>
   )
 }

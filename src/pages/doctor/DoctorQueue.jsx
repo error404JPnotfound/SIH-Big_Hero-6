@@ -55,7 +55,7 @@ function getWaitingTime(createdAt, status) {
   return `${hours}h ${remaining}m`
 }
 
-function PrescriptionForm({ onSave, loading }) {
+export function PrescriptionForm({ onSave, loading }) {
   const [items, setItems] = useState([{ medicine_name: '', dosage: '', frequency: '', duration: '', instructions: '' }])
   const addItem = () => setItems(i => [...i, { medicine_name: '', dosage: '', frequency: '', duration: '', instructions: '' }])
   const setField = (idx, field, val) => setItems(items => items.map((it, i) => i === idx ? { ...it, [field]: val } : it))

@@ -16,9 +16,12 @@ import { supabase } from './supabase'
 
 /** Fetch the current user's profile from the profiles table */
 export async function getMyProfile() {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Please sign in to continue.')
   const { data, error } = await supabase
     .from('profiles')
     .select('id, role, full_name, email, phone, preferred_language, is_active, facility_id')
+    .eq('id', user.id)
     .single()
   if (error) throw error
   return data
@@ -73,10 +76,10 @@ export async function getMyPatientRecord() {
       address, emergency_contact, allergies, is_high_risk,
       profiles:profile_id (full_name, phone, email)
     `)
+    .eq('profile_id', session.user.id)
     .single()
   if (error) {
-    console.warn('[db] getMyPatientRecord warning:', error.message)
-    return null
+    throw error
   }
   return data
 }
@@ -289,7 +292,7 @@ export async function getMyVitals(limit = 10) {
 
   try {
     const patientResult = await supabase
-      .from('patients').select('id').single()
+      .from('patients').select('id').eq('profile_id', session.user.id).single()
     if (patientResult.error || !patientResult.data) return []
 
     const { data, error } = await supabase
@@ -332,8 +335,10 @@ export async function recordVitals(patientId, consultationId, vitalsData) {
 
 /** Start a new consultation */
 export async function startConsultation(appointmentId, patientId) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Please sign in to continue.')
   const doctorResult = await supabase
-    .from('doctors').select('id, facility_id').single()
+    .from('doctors').select('id, facility_id').eq('profile_id', user.id).eq('account_status', 'approved').single()
   if (doctorResult.error) throw doctorResult.error
 
   const { data, error } = await supabase
@@ -369,6 +374,8 @@ export async function saveConsultationNotes(consultationId, notes) {
 
 /** Get patient's prescriptions */
 export async function getMyPrescriptions() {
+  const patient = await getMyPatientRecord()
+  if (!patient) return []
   const { data, error } = await supabase
     .from('prescriptions')
     .select(`
@@ -376,6 +383,7 @@ export async function getMyPrescriptions() {
       doctors:doctor_id ( profiles:profile_id (full_name) ),
       prescription_items (id, medicine_name, dosage, frequency, duration, instructions)
     `)
+    .eq('patient_id', patient.id)
     .order('issued_at', { ascending: false })
   if (error) throw error
   return data
@@ -383,35 +391,19 @@ export async function getMyPrescriptions() {
 
 /** Create a prescription with items */
 export async function createPrescription(patientId, consultationId, items) {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Please sign in to continue.')
-  const doctorResult = await supabase
-    .from('doctors').select('id').eq('profile_id', user.id).single()
-  if (doctorResult.error) throw doctorResult.error
-
-  // Insert prescription header
-  const { data: prescription, error: presErr } = await supabase
-    .from('prescriptions')
-    .insert({
-      patient_id: patientId,
-      doctor_id: doctorResult.data.id,
-      consultation_id: consultationId,
-    })
-    .select()
-    .single()
-  if (presErr) throw presErr
-
-  // Insert line items
-  const itemRows = items.map(item => ({
-    prescription_id: prescription.id,
-    ...item,
-  }))
-  const { error: itemErr } = await supabase
-    .from('prescription_items')
-    .insert(itemRows)
-  if (itemErr) throw itemErr
-
-  return prescription
+  if (!patientId || !Array.isArray(items) || !items.length || items.some(i => !i || !['medicine_name','dosage','frequency','duration'].every(k => String(i[k] || '').trim()))) {
+    throw new Error('Enter medicine name, dosage, frequency and duration for every item.')
+  }
+  const { data, error } = await supabase.rpc('issue_prescription', {
+    p_patient_id: patientId, p_consultation_id: consultationId || null,
+    p_items: items.map(item => Object.fromEntries(['medicine_name','dosage','frequency','duration','instructions'].map(k => [k, String(item[k] || '').trim()])))
+  })
+  if (error) {
+    if (error.code === 'PGRST202') throw new Error('Prescription setup is incomplete. Apply portal_integration_migration.sql in Supabase.')
+    throw error
+  }
+  window.dispatchEvent(new Event('careconnect:records-updated'))
+  return data
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -446,7 +438,7 @@ export async function getMyFollowUps() {
 
   try {
     const { data: patientRow, error: patientErr } = await supabase
-      .from('patients').select('id').single()
+      .from('patients').select('id').eq('profile_id', session.user.id).single()
     if (patientErr || !patientRow) return []
 
     const { data, error } = await supabase
@@ -526,7 +518,7 @@ export async function getMyConsultationTimeline() {
 
   try {
     const { data: patientRow, error: patientErr } = await supabase
-      .from('patients').select('id').single()
+      .from('patients').select('id').eq('profile_id', session.user.id).single()
     if (patientErr || !patientRow) return []
 
     const { data, error } = await supabase
@@ -588,60 +580,13 @@ export async function updateReferralStatus(referralId, status) {
  * Ordered newest first. RLS also restricts rows to own patient.
  */
 export async function getMyDiagnostics() {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.user) return []
-
-  try {
-    // Robustly resolve the patient_id belonging to the authenticated user
-    let patientId = null
-    const { data: byProfile } = await supabase
-      .from('patients')
-      .select('id')
-      .eq('profile_id', session.user.id)
-      .maybeSingle()
-
-    if (byProfile?.id) {
-      patientId = byProfile.id
-    } else {
-      const { data: byId } = await supabase
-        .from('patients')
-        .select('id')
-        .eq('id', session.user.id)
-        .maybeSingle()
-      if (byId?.id) {
-        patientId = byId.id
-      } else {
-        const { data: singleRow } = await supabase
-          .from('patients')
-          .select('id')
-          .maybeSingle()
-        patientId = singleRow?.id
-      }
-    }
-
-    if (!patientId) return []
-
-    const { data, error } = await supabase
-      .from('diagnostics')
-      .select(`
-        id, test_name, status, scheduled_at, result_notes, report_url, created_at, updated_at,
-        doctors:requested_by (
-          id, specialization,
-          profiles:profile_id ( full_name )
-        ),
-        facilities:facility_id ( id, name, type, address )
-      `)
-      .eq('patient_id', patientId)
-      .order('created_at', { ascending: false })
-    if (error) {
-      console.warn('[db] getMyDiagnostics warning:', error.message)
-      return []
-    }
-    return data || []
-  } catch (err) {
-    console.warn('[db] getMyDiagnostics exception:', err.message)
-    return []
-  }
+  const patient = await getMyPatientRecord()
+  if (!patient) return []
+  const { data, error } = await supabase.from('diagnostics').select(
+    'id,test_name,status,scheduled_at,result_notes,report_url,created_at,updated_at,doctors:requested_by(id,specialization,profiles:profile_id(full_name)),facilities:facility_id(id,name,type,address)'
+  ).eq('patient_id', patient.id).order('created_at', { ascending: false })
+  if (error) throw error
+  return data || []
 }
 
 /**
@@ -808,11 +753,12 @@ export async function getDoctorsByFacility(facilityId) {
   const { data, error } = await supabase
     .from('doctors')
     .select(`
-      id, specialization, is_available,
+      id, specialization, is_available, account_status,
       profiles:profile_id (full_name, phone)
     `)
     .eq('facility_id', facilityId)
     .eq('is_available', true)
+    .eq('account_status', 'approved')
   if (error) {
     console.warn('[db] getDoctorsByFacility warning:', error.message)
     return []
@@ -829,6 +775,7 @@ export async function getAvailableDoctors() {
       profiles:profile_id (full_name, phone)
     `)
     .eq('is_available', true)
+    .eq('account_status', 'approved')
   if (error) {
     console.warn('[db] getAvailableDoctors warning:', error.message)
     return []
@@ -841,65 +788,145 @@ export async function getAvailableDoctors() {
 // ──────────────────────────────────────────────────────────────
 
 /** Get admin analytics snapshot */
-export async function getAdminDashboard() {
-  const { data, error } = await supabase
-    .from('admin_dashboard_view')
-    .select('*')
-    .single()
-  if (error) throw error
-  return data
-}
+
 
 /** Get quality indicators for admin dashboard */
-export async function getQualityIndicators() {
-  const { data, error } = await supabase
-    .from('quality_indicators_view')
-    .select('*')
-  if (error) throw error
-  return data
-}
+
 
 /** Get rich quality monitor metrics */
-export async function getQualityMonitorMetrics() {
-  const { data, error } = await supabase
-    .from('quality_monitor_metrics_view')
-    .select('*')
-  if (error) throw error
-  return data
-}
+
 
 /** Get weekly consultations for admin dashboard */
-export async function getWeeklyConsultations() {
-  const { data, error } = await supabase
-    .from('weekly_consultations_view')
-    .select('*')
-  if (error) throw error
-  return data
-}
+
 
 export async function getAdminDoctors() {
-  const { data, error } = await supabase.from('admin_doctors_view').select('*')
+  const { data, error } = await supabase
+    .from('doctors')
+    .select(`
+      id,
+      profile_id,
+      facility_id,
+      specialization,
+      gender,
+      qualification,
+      experience_years,
+      department,
+      designation,
+      reg_number,
+      available_days,
+      working_hours,
+      consultation_type,
+      emergency_duty,
+      account_status,
+      rejection_reason,
+      is_available,
+      created_at,
+      profiles:profile_id (full_name, email, phone),
+      facilities:facility_id (name)
+    `)
   if (error) throw error
+
+  return (data || [])
+    .map(doc => ({
+      ...doc,
+      name: doc.profiles?.full_name || `Doctor ${doc.reg_number}`,
+      email: doc.profiles?.email || '',
+      phone: doc.profiles?.phone || '',
+      facility: doc.facilities?.name || 'No facility',
+      status: doc.account_status === 'pending'
+        ? 'Pending'
+        : doc.account_status === 'rejected'
+          ? 'Rejected'
+          : doc.is_available
+            ? 'Active'
+            : 'On Leave',
+    }))
+    .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+}
+
+export async function submitDoctorRegistration(form) {
+  const required = ['fullName', 'phone', 'email', 'password', 'regNumber', 'qualification', 'specialization', 'experience', 'department', 'facilityId', 'designation']
+  const missing = required.filter(key => !String(form[key] ?? '').trim())
+  if (missing.length) throw new Error('Please fill in all required doctor registration fields.')
+
+  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+    email: form.email.trim(),
+    password: form.password,
+    options: {
+      data: {
+        full_name: form.fullName.trim(),
+        role: 'doctor',
+        phone: form.phone.trim(),
+      },
+    },
+  })
+  if (signUpError) throw signUpError
+
+  const authUser = signUpData.user
+  if (!authUser?.id) throw new Error('Doctor account could not be created.')
+
+  const { data, error } = await supabase
+    .from('doctors')
+    .insert({
+      profile_id: authUser.id,
+      facility_id: form.facilityId,
+      specialization: form.specialization.trim(),
+      reg_number: form.regNumber.trim(),
+      gender: form.gender || null,
+      qualification: form.qualification.trim(),
+      experience_years: Number(form.experience),
+      department: form.department,
+      designation: form.designation.trim(),
+      available_days: form.availableDays || [],
+      working_hours: form.workingHours || null,
+      consultation_type: form.consultationType || 'in_person',
+      emergency_duty: !!form.emergencyDuty,
+      account_status: 'pending',
+      rejection_reason: null,
+      is_available: false,
+    })
+    .select()
+    .single()
+  if (error) throw error
+
+  await supabase.auth.signOut()
   return data
 }
 
-export async function getAdminPatients() {
-  const { data, error } = await supabase.from('admin_patients_view').select('*')
+export async function updateDoctorApprovalStatus(doctorId, status, rejectionReason = null) {
+  if (!['approved', 'rejected'].includes(status)) throw new Error('Invalid doctor approval status.')
+  const { data, error } = await supabase
+    .from('doctors')
+    .update({
+      account_status: status,
+      rejection_reason: status === 'rejected' ? rejectionReason : null,
+      is_available: status === 'approved',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', doctorId)
+    .select()
+    .single()
   if (error) throw error
+
+  if (data?.profile_id) {
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        is_active: status === 'approved',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', data.profile_id)
+    if (profileError) throw profileError
+  }
+
   return data
 }
 
-export async function getAdminReferrals() {
-  const { data, error } = await supabase.from('admin_referrals_view').select('*')
-  if (error) throw error
-  return data
-}
 
-export async function getAdminMedicineStock() {
-  const { data, error } = await supabase.from('admin_medicines_view').select('*')
-  if (error) throw error
-  return data
-}
+
+
+
+
 
 // ──────────────────────────────────────────────────────────────
 // TRIAGE
@@ -927,7 +954,7 @@ export async function getDoctorByProfileId(profileId) {
   const { data, error } = await supabase
     .from('doctors')
     .select(`
-      id, facility_id, specialization, reg_number, is_available,
+      id, facility_id, specialization, reg_number, is_available, account_status, rejection_reason,
       facilities:facility_id (id, name, type, address, district)
     `)
     .eq('profile_id', profileId)
@@ -1157,3 +1184,4 @@ export async function getDoctorClinicalWorklists(profileId) {
     followUps: followUpsRes.data || [],
   }
 }
+export { dashboard as getAdminDashboard, quality as getQualityIndicators, quality as getQualityMonitorMetrics, weekly as getWeeklyConsultations, patients as getAdminPatients, referrals as getAdminReferrals, stock as getAdminMedicineStock } from './adminLive'

@@ -1,3 +1,4 @@
+import { useLiveRecords } from '../../hooks/useLiveRecords'
 import AppLayout from '../../components/layout/AppLayout'
 import { ProgressBar } from '../../components/ui/Misc'
 import { Badge } from '../../components/ui/Badge'
@@ -17,26 +18,13 @@ function Sparkline({ data = [] }) {
 }
 
 export default function QualityMonitor() {
-  const [metrics, setMetrics] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { data: metrics, loading, error } = useLiveRecords(getQualityMonitorMetrics)
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await getQualityMonitorMetrics()
-        if (data) setMetrics(data)
-      } catch (err) {
-        console.error('Error loading quality metrics:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [])
 
   return (
     <AppLayout role="admin">
       <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
+        {error && <p role="alert" className="p-4 text-status-critical border rounded-xl">Unable to load live data: {error}</p>}
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Quality Monitoring</h1>
           <p className="text-text-muted text-sm">Healthcare quality indicators across Khandwa district</p>
@@ -72,8 +60,8 @@ export default function QualityMonitor() {
                     <p className="text-xs text-text-muted mt-0.5">{m.desc}</p>
                   </div>
                   <div className="text-right">
-                    <p className={`text-xl font-bold ${isGood ? 'text-status-success' : isBad ? 'text-status-critical' : 'text-status-warning'}`}>{m.value}{m.unit}</p>
-                    <div className={`flex items-center gap-0.5 text-xs ${trendColor} justify-end`}>
+                    <p className={`text-xl font-bold ${isGood ? 'text-status-success' : isBad ? 'text-status-critical' : 'text-status-warning'}`}>{m.value === null ? 'No data' : `${m.value}${m.unit}`}</p>
+                    <div hidden={m.trend === null} className={`flex items-center gap-0.5 text-xs ${trendColor} justify-end`}>
                       <TrendIcon className="w-3 h-3" />{Math.abs(m.trend)}{m.unit === '%' ? '%' : ''}
                     </div>
                   </div>
@@ -81,7 +69,7 @@ export default function QualityMonitor() {
                 <ProgressBar value={typeof m.value === 'number' && m.unit === '%' ? m.value : (m.value / (m.target * 1.5)) * 100} max={100} color={barColor} label={`Target: ${m.target}${m.unit}`} />
                 <div className="mt-3 flex items-end justify-between">
                   <Sparkline data={m.sparkline} />
-                  <span className="text-xs text-text-muted">7-day trend</span>
+                  <span className="text-xs text-text-muted">Live totals · refreshes every 15 seconds</span>
                 </div>
               </div>
             )

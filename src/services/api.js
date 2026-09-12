@@ -419,7 +419,7 @@ export const appointmentService = {
           });
         }
       } catch (e) {
-        console.warn('Supabase getAppointments failed, falling back:', e);
+        throw e;
       }
     }
 
@@ -456,7 +456,7 @@ export const appointmentService = {
           reason: appointmentData.symptoms || 'General Consultation',
         });
 
-        const queueNo = res?.queue_number || `A-0${Math.floor(Math.random() * 50) + 1}`;
+        const queueNo = res?.queue_number || null;
         const newAppt = {
           id: res?.appointment_id || `a-${Date.now()}`,
           _id: res?.appointment_id || `a-${Date.now()}`,
@@ -484,7 +484,7 @@ export const appointmentService = {
         saveStoredAppointments([newAppt, ...current]);
         return newAppt;
       } catch (err) {
-        console.warn('Supabase bookAppointment error, using fallback:', err);
+        throw err;
       }
     }
 
@@ -533,8 +533,9 @@ export const appointmentService = {
     if (isSupabaseConfigured()) {
       try {
         await dbCancelAppointment(id);
+        return { id, status: 'cancelled' };
       } catch (e) {
-        console.warn('Supabase cancelAppointment failed:', e);
+        throw e;
       }
     }
 

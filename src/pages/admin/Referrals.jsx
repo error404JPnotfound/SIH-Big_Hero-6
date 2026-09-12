@@ -1,28 +1,18 @@
-import { useState, useEffect } from 'react'
+import { RecordEditor } from '../../components/RecordEditor'
+import { useLiveRecords } from '../../hooks/useLiveRecords'
+import { useState } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import { Badge } from '../../components/ui/Badge'
-import { getAdminReferrals } from '../../lib/db'
+import { getAdminReferrals, updateReferralStatus } from '../../lib/db'
 import { Search, Filter, ArrowRight } from 'lucide-react'
 
 export default function Referrals() {
-  const [referrals, setReferrals] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { data: referrals, loading, error } = useLiveRecords(getAdminReferrals)
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
+  const [selected, setSelected] = useState(null)
+  const [filteredOnly, setFilteredOnly] = useState(false)
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await getAdminReferrals()
-        if (data) setReferrals(data)
-      } catch (err) {
-        console.error('Error loading referrals:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [])
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -36,6 +26,7 @@ export default function Referrals() {
   return (
     <AppLayout role="admin">
       <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
+        {error && <p role="alert" className="p-4 text-status-critical border rounded-xl">Unable to load live data: {error}</p>}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-navy">Referrals Dashboard</h1>
@@ -43,12 +34,12 @@ export default function Referrals() {
           </div>
           <div className="flex gap-2">
             <button 
-              onClick={() => { setShowSearch(!showSearch); setSearchQuery('') }}
+              aria-label="Search" onClick={() => { setShowSearch(!showSearch); setSearchQuery('') }}
               className={`p-2 border rounded-lg transition-colors ${showSearch ? 'border-teal text-teal bg-teal-light/50' : 'border-border text-muted hover:bg-bg'}`}
             >
               <Search className="w-4 h-4" />
             </button>
-            <button className="p-2 border border-border rounded-lg text-muted hover:bg-bg"><Filter className="w-4 h-4" /></button>
+            <button aria-label="Toggle filter" aria-pressed={filteredOnly} onClick={() => setFilteredOnly(v => !v)} className="p-2 border border-border rounded-lg text-muted hover:bg-bg"><Filter className="w-4 h-4" /></button>
           </div>
         </div>
 
@@ -66,12 +57,13 @@ export default function Referrals() {
           </div>
         )}
 
+        {filteredOnly && <p className="text-sm text-brand-default">Showing open referrals</p>}
         {loading ? (
           <div className="text-center py-12 text-muted">Loading...</div>
-        ) : (
+        ) : error ? null : (
           <div className="space-y-3">
-            {referrals.filter(ref => !searchQuery || ref.patient_name.toLowerCase().includes(searchQuery.toLowerCase()) || ref.patient_code.toLowerCase().includes(searchQuery.toLowerCase()) || ref.from_facility.toLowerCase().includes(searchQuery.toLowerCase()) || ref.to_facility.toLowerCase().includes(searchQuery.toLowerCase()) || ref.department.toLowerCase().includes(searchQuery.toLowerCase())).map((ref, i) => (
-              <div key={i} className="bg-surface border border-border rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-4 hover:shadow-sm transition-shadow">
+            {referrals.filter(ref => !filteredOnly || !['completed','cancelled'].includes(ref.status)).filter(ref => !searchQuery || ref.patient_name.toLowerCase().includes(searchQuery.toLowerCase()) || ref.patient_code.toLowerCase().includes(searchQuery.toLowerCase()) || ref.from_facility.toLowerCase().includes(searchQuery.toLowerCase()) || ref.to_facility.toLowerCase().includes(searchQuery.toLowerCase()) || ref.department.toLowerCase().includes(searchQuery.toLowerCase())).map((ref) => (
+              <div key={ref.id} className="bg-surface border border-border rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-4 hover:shadow-sm transition-shadow">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="font-mono text-xs px-2 py-0.5 bg-bg rounded text-muted">{ref.patient_code}</span>
@@ -92,14 +84,14 @@ export default function Referrals() {
                 </div>
                 
                 <div className="flex gap-2 shrink-0">
-                  <button className="px-4 py-1.5 text-sm font-medium border border-border rounded-lg text-navy hover:bg-bg transition-colors">
+                  <button onClick={() => setSelected(ref)} className="px-4 py-1.5 text-sm font-medium border border-border rounded-lg text-navy hover:bg-bg transition-colors">
                     Review
                   </button>
                 </div>
               </div>
             ))}
             
-            {referrals.filter(ref => !searchQuery || ref.patient_name.toLowerCase().includes(searchQuery.toLowerCase()) || ref.patient_code.toLowerCase().includes(searchQuery.toLowerCase()) || ref.from_facility.toLowerCase().includes(searchQuery.toLowerCase()) || ref.to_facility.toLowerCase().includes(searchQuery.toLowerCase()) || ref.department.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+            {referrals.filter(ref => !filteredOnly || !['completed','cancelled'].includes(ref.status)).filter(ref => !searchQuery || ref.patient_name.toLowerCase().includes(searchQuery.toLowerCase()) || ref.patient_code.toLowerCase().includes(searchQuery.toLowerCase()) || ref.from_facility.toLowerCase().includes(searchQuery.toLowerCase()) || ref.to_facility.toLowerCase().includes(searchQuery.toLowerCase()) || ref.department.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
               <div className="text-center py-12 border border-dashed border-border rounded-xl">
                 <p className="text-muted">No referrals found matching your search.</p>
               </div>
@@ -107,6 +99,7 @@ export default function Referrals() {
           </div>
         )}
       </div>
+      {selected && <RecordEditor key={selected.id} title={`Review referral: ${selected.patient_name}`} initial={selected} fields={[{name:'reason',label:'Referral reason',readOnly:true},{name:'status',label:'Status',options:['created','pending','accepted','scheduled','in_progress','completed','follow_up_required','cancelled']}]} onSave={values => updateReferralStatus(selected.id, values.status)} onClose={() => setSelected(null)} />}
     </AppLayout>
   )
 }

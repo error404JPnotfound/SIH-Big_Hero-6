@@ -137,10 +137,44 @@ create table if not exists doctors (
   facility_id     uuid references facilities(id),
   specialization  text not null,
   reg_number      text unique not null,
+  gender          text,
+  qualification   text,
+  experience_years int,
+  department      text,
+  designation     text,
+  available_days  text[] not null default '{}',
+  working_hours   text,
+  consultation_type text not null default 'in_person',
+  emergency_duty  boolean not null default false,
+  account_status  text not null default 'pending'
+                  check (account_status in ('pending', 'approved', 'rejected')),
+  rejection_reason text,
   is_available    boolean not null default true,
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now()
 );
+
+create unique index if not exists doctors_reg_number_unique_idx
+  on doctors (lower(reg_number));
+
+create unique index if not exists profiles_email_unique_idx
+  on profiles (lower(email))
+  where email is not null;
+
+do $$ begin
+  alter table doctors
+    add constraint doctors_required_registration_fields
+    check (
+      length(trim(coalesce(specialization, ''))) > 0
+      and length(trim(coalesce(reg_number, ''))) > 0
+      and length(trim(coalesce(qualification, ''))) > 0
+      and experience_years is not null
+      and experience_years >= 0
+      and length(trim(coalesce(department, ''))) > 0
+      and length(trim(coalesce(designation, ''))) > 0
+      and facility_id is not null
+    );
+exception when duplicate_object then null; end $$;
 
 -- ── APPOINTMENTS ─────────────────────────────────────────────────
 create table if not exists appointments (

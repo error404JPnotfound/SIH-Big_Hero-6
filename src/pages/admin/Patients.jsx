@@ -1,32 +1,23 @@
-import { useState, useEffect } from 'react'
+import { RecordDetails } from '../../components/RecordDetails'
+import { useLiveRecords } from '../../hooks/useLiveRecords'
+import { useState } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import { Badge } from '../../components/ui/Badge'
-import { getAdminPatients } from '../../lib/db'
+import { getAdminPatients, getPatientProfileById } from '../../lib/db'
 import { Search, Filter, AlertCircle } from 'lucide-react'
 
 export default function Patients() {
-  const [patients, setPatients] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { data: patients, loading, error } = useLiveRecords(getAdminPatients)
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
+  const [selected, setSelected] = useState(null)
+  const [filteredOnly, setFilteredOnly] = useState(false)
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await getAdminPatients()
-        if (data) setPatients(data)
-      } catch (err) {
-        console.error('Error loading patients:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [])
 
   return (
     <AppLayout role="admin">
       <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
+        {error && <p role="alert" className="p-4 text-status-critical border rounded-xl">Unable to load live data: {error}</p>}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-navy">Patient Registry</h1>
@@ -34,12 +25,12 @@ export default function Patients() {
           </div>
           <div className="flex gap-2">
             <button 
-              onClick={() => { setShowSearch(!showSearch); setSearchQuery('') }}
+              aria-label="Search" onClick={() => { setShowSearch(!showSearch); setSearchQuery('') }}
               className={`p-2 border rounded-lg transition-colors ${showSearch ? 'border-teal text-teal bg-teal-light/50' : 'border-border text-muted hover:bg-bg'}`}
             >
               <Search className="w-4 h-4" />
             </button>
-            <button className="p-2 border border-border rounded-lg text-muted hover:bg-bg"><Filter className="w-4 h-4" /></button>
+            <button aria-label="Toggle filter" aria-pressed={filteredOnly} onClick={() => setFilteredOnly(v => !v)} className="p-2 border border-border rounded-lg text-muted hover:bg-bg"><Filter className="w-4 h-4" /></button>
           </div>
         </div>
 
@@ -57,12 +48,13 @@ export default function Patients() {
           </div>
         )}
 
+        {filteredOnly && <p className="text-sm text-brand-default">Showing high-risk patients</p>}
         {loading ? (
           <div className="text-center py-12 text-muted">Loading...</div>
-        ) : (
+        ) : error ? null : (
           <div className="space-y-3">
-            {patients.filter(pt => !searchQuery || pt.name.toLowerCase().includes(searchQuery.toLowerCase()) || pt.patient_code.toLowerCase().includes(searchQuery.toLowerCase()) || (pt.condition && pt.condition.toLowerCase().includes(searchQuery.toLowerCase()))).map((pt, i) => (
-              <div key={i} className={`bg-surface border rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-4 hover:shadow-sm transition-shadow ${pt.is_high_risk ? 'border-critical/30' : 'border-border'}`}>
+            {patients.filter(pt => !filteredOnly || pt.is_high_risk).filter(pt => !searchQuery || pt.name.toLowerCase().includes(searchQuery.toLowerCase()) || pt.patient_code.toLowerCase().includes(searchQuery.toLowerCase()) || (pt.condition && pt.condition.toLowerCase().includes(searchQuery.toLowerCase()))).map((pt) => (
+              <div key={pt.id} className={`bg-surface border rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-4 hover:shadow-sm transition-shadow ${pt.is_high_risk ? 'border-critical/30' : 'border-border'}`}>
                 <div className="w-12 h-12 rounded-full bg-blue-light text-blue flex items-center justify-center font-bold text-lg flex-shrink-0">
                   {pt.name.charAt(0)}
                 </div>
@@ -87,14 +79,14 @@ export default function Patients() {
                 </div>
 
                 <div className="flex gap-2 shrink-0">
-                  <button className="px-4 py-1.5 text-sm font-medium border border-border rounded-lg text-navy hover:bg-bg transition-colors">
+                  <button onClick={() => setSelected(pt)} className="px-4 py-1.5 text-sm font-medium border border-border rounded-lg text-navy hover:bg-bg transition-colors">
                     View Records
                   </button>
                 </div>
               </div>
             ))}
 
-            {patients.filter(pt => !searchQuery || pt.name.toLowerCase().includes(searchQuery.toLowerCase()) || pt.patient_code.toLowerCase().includes(searchQuery.toLowerCase()) || (pt.condition && pt.condition.toLowerCase().includes(searchQuery.toLowerCase()))).length === 0 && (
+            {patients.filter(pt => !filteredOnly || pt.is_high_risk).filter(pt => !searchQuery || pt.name.toLowerCase().includes(searchQuery.toLowerCase()) || pt.patient_code.toLowerCase().includes(searchQuery.toLowerCase()) || (pt.condition && pt.condition.toLowerCase().includes(searchQuery.toLowerCase()))).length === 0 && (
               <div className="text-center py-12 border border-dashed border-border rounded-xl">
                 <p className="text-muted">No patients found matching your search.</p>
               </div>
@@ -102,6 +94,7 @@ export default function Patients() {
           </div>
         )}
       </div>
+      <RecordDetails title="Patient Records" record={selected} load={getPatientProfileById} onClose={() => setSelected(null)} />
     </AppLayout>
   )
 }

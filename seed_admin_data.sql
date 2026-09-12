@@ -58,16 +58,43 @@ SELECT 'Facility Utilization', 72.0, '%', 80.0, 'warning', 6.0, 'District Hospit
 
 -- 6. Doctors View (Reads from actual doctors table)
 DROP VIEW IF EXISTS admin_doctors_view;
-CREATE VIEW admin_doctors_view AS
+CREATE VIEW admin_doctors_view
+  with (security_invoker = true)
+AS
 SELECT 
+  d.id,
+  d.profile_id,
   COALESCE(p.full_name, 'Doctor ' || d.reg_number) as name,
+  p.email,
+  p.phone,
   d.specialization,
+  d.gender,
+  d.qualification,
+  d.experience_years,
+  d.department,
+  d.designation,
   f.name as facility,
+  d.facility_id,
   d.reg_number,
-  CASE WHEN d.is_available THEN 'Active' ELSE 'On Leave' END as status
+  d.available_days,
+  d.working_hours,
+  d.consultation_type,
+  d.emergency_duty,
+  d.account_status,
+  d.rejection_reason,
+  d.created_at,
+  CASE
+    WHEN d.account_status = 'pending' THEN 'Pending'
+    WHEN d.account_status = 'rejected' THEN 'Rejected'
+    WHEN d.is_available THEN 'Active'
+    ELSE 'On Leave'
+  END as status
 FROM doctors d
 LEFT JOIN facilities f ON f.id = d.facility_id
 LEFT JOIN profiles p ON p.id = d.profile_id;
+
+GRANT SELECT ON admin_doctors_view TO authenticated;
+GRANT SELECT ON admin_doctors_view TO anon;
 
 -- 7. Patients View (Reads from actual patients table)
 DROP VIEW IF EXISTS admin_patients_view;

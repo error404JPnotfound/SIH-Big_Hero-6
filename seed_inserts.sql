@@ -13,12 +13,16 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- 2. Insert Doctors (profile_id left NULL for demo purposes)
-INSERT INTO doctors (id, facility_id, specialization, reg_number, is_available)
+INSERT INTO doctors (
+  id, facility_id, specialization, reg_number, qualification, experience_years,
+  department, designation, available_days, working_hours, consultation_type,
+  emergency_duty, account_status, is_available
+)
 VALUES
-  ('d0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000003', 'Cardiology', 'MCI-1234', true),
-  ('d0000000-0000-0000-0000-000000000002', 'f0000000-0000-0000-0000-000000000001', 'General Medicine', 'MCI-5678', true),
-  ('d0000000-0000-0000-0000-000000000003', 'f0000000-0000-0000-0000-000000000004', 'Pediatrics', 'MCI-9012', false),
-  ('d0000000-0000-0000-0000-000000000004', 'f0000000-0000-0000-0000-000000000003', 'Orthopedics', 'MCI-3456', true)
+  ('d0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000003', 'Cardiology', 'MCI-1234', 'MBBS, MD', 12, 'Cardiology', 'Consultant', array['Monday','Wednesday','Friday'], '09:00-16:00', 'both', true, 'approved', true),
+  ('d0000000-0000-0000-0000-000000000002', 'f0000000-0000-0000-0000-000000000001', 'General Medicine', 'MCI-5678', 'MBBS', 8, 'General Medicine', 'Medical Officer', array['Monday','Tuesday','Wednesday','Thursday','Friday'], '10:00-17:00', 'in_person', false, 'approved', true),
+  ('d0000000-0000-0000-0000-000000000003', 'f0000000-0000-0000-0000-000000000004', 'Pediatrics', 'MCI-9012', 'MBBS, DCH', 6, 'Pediatrics', 'Pediatrician', array['Tuesday','Thursday','Saturday'], '09:30-14:00', 'in_person', false, 'approved', false),
+  ('d0000000-0000-0000-0000-000000000004', 'f0000000-0000-0000-0000-000000000003', 'Orthopedics', 'MCI-3456', 'MBBS, MS', 10, 'Orthopedics', 'Consultant', array['Monday','Wednesday','Saturday'], '11:00-18:00', 'both', true, 'approved', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- 3. Insert Patients (profile_id left NULL for demo purposes)

@@ -1,8 +1,12 @@
+import { useLiveRecords } from '../../hooks/useLiveRecords'
+import { RecordDetails } from '../../components/RecordDetails'
+import { RecordEditor } from '../../components/RecordEditor'
+import { saveFollowUp, followUpFields } from '../../lib/clinicalUpdates'
 import AppLayout from '../../components/layout/AppLayout'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { ProgressBar } from '../../components/ui/Misc'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { getHighRiskFollowUps } from '../../lib/db'
 import { AlertCircle, Baby, Heart, Pill, Users, Filter } from 'lucide-react'
 
@@ -20,36 +24,12 @@ const STATUS_META = {
 const CATEGORIES = ['All', 'Maternal Health', 'Child Health', 'Diabetes', 'Hypertension', 'TB', 'Elderly Care']
 
 export default function HighRisk() {
-  const [highRisk, setHighRisk] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await getHighRiskFollowUps()
-        if (data) {
-          const mapped = data.map(hr => ({
-            id: hr.id,
-            name: hr.patients?.profiles?.full_name || hr.patients?.patient_code || 'Unknown',
-            age: hr.patients?.dob ? new Date().getFullYear() - new Date(hr.patients.dob).getFullYear() : 'N/A',
-            category: hr.category,
-            risk: hr.risk_level,
-            last_visit: hr.last_visit,
-            next_due: hr.next_due,
-            provider: hr.doctors?.profiles?.full_name || 'Unassigned',
-            status: hr.status
-          }))
-          setHighRisk(mapped)
-        }
-      } catch (err) {
-        console.error('Error loading high risk patients:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [])
-
+  const { data, loading, error } = useLiveRecords(getHighRiskFollowUps)
+  const [category, setCategory] = useState('All')
+  const [selected, setSelected] = useState(null)
+  const [editing, setEditing] = useState(null)
+  const [overdueOnly, setOverdueOnly] = useState(false)
+  const highRisk = data.map(hr => ({...hr, name:hr.patients?.profiles?.full_name || hr.patients?.patient_code || 'Unknown', age:hr.patients?.dob ? new Date().getFullYear()-new Date(hr.patients.dob).getFullYear() : 'Not recorded', risk:hr.risk_level, provider:hr.doctors?.profiles?.full_name || 'Unassigned'}))
   return (
     <AppLayout role="admin">
       <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
@@ -58,13 +38,15 @@ export default function HighRisk() {
             <h1 className="text-2xl font-bold text-text-primary">High-Risk Patients</h1>
             <p className="text-text-muted text-sm">Monitor and coordinate care for vulnerable patients</p>
           </div>
-          <Button variant="outline" size="sm"><Filter className="w-4 h-4" /> Filter</Button>
+          <Button onClick={() => setOverdueOnly(v => !v)} aria-pressed={overdueOnly} variant="outline" size="sm"><Filter className="w-4 h-4" /> {overdueOnly ? 'Show all' : 'Overdue only'}</Button>
         </div>
 
+        {error && <p role="alert" className="text-status-critical">{error}</p>}
+        {loading && <p>Loading follow-ups…</p>}
         {/* Category pills */}
         <div className="flex gap-2 flex-wrap">
           {CATEGORIES.map(c => (
-            <button key={c} className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${c === 'All' ? 'bg-navy text-surface border-navy' : 'border-border-subtle text-text-muted hover:border-brand-default hover:text-brand-default'}`}>{c}</button>
+            <button onClick={() => setCategory(c)} key={c} className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${c === category ? 'bg-navy text-surface border-navy' : 'border-border-subtle text-text-muted hover:border-brand-default hover:text-brand-default'}`}>{c}</button>
           ))}
         </div>
 
@@ -88,9 +70,9 @@ export default function HighRisk() {
 
         {/* Patient cards */}
         <div className="space-y-3">
-          {highRisk.map(p => {
-            const sm = STATUS_META[p.status]
-            const rm = RISK_META[p.risk]
+          {highRisk.filter(p => (category === 'All' || p.category === category) && (!overdueOnly || p.status === 'overdue')).map(p => {
+            const sm = STATUS_META[p.status] || {label:p.status,color:''}
+            const rm = RISK_META[p.risk] || {variant:'outline'}
             return (
               <div key={p.id} className={`bg-surface-elevated rounded-xl border p-4 hover:shadow-sm transition-shadow ${p.status === 'overdue' ? 'border-status-critical/30' : 'border-border-subtle'}`}>
                 <div className="flex items-start gap-4">
@@ -112,8 +94,8 @@ export default function HighRisk() {
                     </div>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
-                    <Button size="sm" variant="outline" className="text-xs">View</Button>
-                    <Button size="sm" className="bg-brand-default text-white text-xs">Schedule</Button>
+                    <Button onClick={() => setSelected(p)} size="sm" variant="outline" className="text-xs">View</Button>
+                    <Button onClick={() => setEditing(p)} size="sm" className="bg-brand-default text-white text-xs">Schedule</Button>
                   </div>
                 </div>
               </div>
@@ -121,6 +103,8 @@ export default function HighRisk() {
           })}
         </div>
       </div>
+      <RecordDetails title="Follow-up Details" record={selected} onClose={() => setSelected(null)} />
+      {editing && <RecordEditor key={editing.id} title="Schedule Follow-up" initial={editing} fields={followUpFields} onSave={values => saveFollowUp(editing.id, values, true)} onClose={() => setEditing(null)} />}
     </AppLayout>
   )
 }

@@ -1,26 +1,50 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Check, Trash2, X } from 'lucide-react'
+import { Bell, X } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 import { notificationService } from '../../services/notificationService'
 
 export default function NotificationDropdown({ userId }) {
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
+  const [error, setError] = useState('')
+  const { demoMode } = useAuth()
   const containerRef = useRef(null)
   const navigate = useNavigate()
 
-  const reload = () => {
-    setNotifications(notificationService.getNotifications(userId))
-  }
-
   useEffect(() => {
-    reload()
-    notificationService.ensureQueueSynced(userId)
-    const handleUpdate = () => reload()
+    let active = true
+    setNotifications([])
+    setError('')
+    if (!userId || demoMode) return
+    const handleUpdate = async () => {
+      try {
+        const items = await notificationService.getNotifications(userId)
+        if (active) { setNotifications(items); setError('') }
+      } catch (err) { if (active) setError(err.message) }
+    }
+    handleUpdate()
+    const channel = supabase.channel(`bell:${userId}`).on('postgres_changes', {
+      event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}`,
+    }, handleUpdate).subscribe()
+    const timer = setInterval(handleUpdate, 15000)
+    window.addEventListener('focus', handleUpdate)
     window.addEventListener('careconnect:notifications-updated', handleUpdate)
-    return () => window.removeEventListener('careconnect:notifications-updated', handleUpdate)
-  }, [userId])
+    return () => {
+      active = false
+      clearInterval(timer)
+      supabase.removeChannel(channel)
+      window.removeEventListener('focus', handleUpdate)
+      window.removeEventListener('careconnect:notifications-updated', handleUpdate)
+    }
+  }, [userId, demoMode])
+
+  const mutate = async (action) => {
+    try { await action(); window.dispatchEvent(new Event('careconnect:notifications-updated')) }
+    catch (err) { setError(err.message) }
+  }
 
   // Close on outside click or Escape key
   useEffect(() => {
@@ -46,24 +70,24 @@ export default function NotificationDropdown({ userId }) {
 
   const handleMarkAllRead = (e) => {
     e.stopPropagation()
-    notificationService.markAllAsRead(userId)
+    mutate(() => notificationService.markAllAsRead(userId))
   }
 
   const handleClearAll = (e) => {
     e.stopPropagation()
-    notificationService.clearAll(userId)
+    mutate(() => notificationService.clearAll(userId))
   }
 
   const handleDeleteItem = (e, id) => {
     e.stopPropagation()
-    notificationService.deleteNotification(id, userId)
+    mutate(() => notificationService.deleteNotification(id, userId))
   }
 
   const handleItemClick = (item) => {
     if (item.unread) {
-      notificationService.markAsRead(item.id, userId)
+      mutate(() => notificationService.markAsRead(item.id, userId))
     }
-    if (item.link) {
+    if (item.link?.startsWith('/') && !item.link.startsWith('//')) {
       setOpen(false)
       navigate(item.link)
     }
@@ -142,7 +166,8 @@ export default function NotificationDropdown({ userId }) {
 
           {/* Notification Items List */}
           <div className="space-y-4 max-h-[380px] overflow-y-auto scrollbar-thin pr-1">
-            {notifications.length === 0 ? (
+            {error && <p role="alert" className="text-sm text-status-critical">Could not load notifications: {error}</p>}
+            {!error && notifications.length === 0 ? (
               <div className="py-8 text-center flex flex-col items-center justify-center">
                 <Bell className="w-8 h-8 text-border mb-2" />
                 <p className="text-sm font-semibold text-text-primary">No notifications</p>

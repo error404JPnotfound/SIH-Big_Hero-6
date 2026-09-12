@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+import { facilities as getLiveFacilities } from '../../lib/adminLive'
+import { useLiveRecords } from '../../hooks/useLiveRecords'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import AppLayout from '../../components/layout/AppLayout'
@@ -6,7 +8,7 @@ import { KPICard } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { ProgressBar, Alert } from '../../components/ui/Misc'
-import { getAdminDashboard, getFacilities, getHighRiskFollowUps, getQualityIndicators, getWeeklyConsultations } from '../../lib/db'
+import { getAdminDashboard, getHighRiskFollowUps, getQualityIndicators, getWeeklyConsultations } from '../../lib/db'
 import {
   Users, Stethoscope, Building2, Activity, ClipboardList, AlertCircle,
   Pill, Clock, TrendingUp, TrendingDown, ChevronRight
@@ -21,7 +23,7 @@ function FacilityRow({ fac }) {
   }
   const meta = statusMeta[fac.status] || { variant: 'outline', label: fac.status || 'Unknown' }
   const patientsToday = fac.patients_today || 0
-  const capacity = fac.capacity || 100
+  const capacity = fac.capacity ?? 0
   const load = Math.round((patientsToday / capacity) * 100)
   const loadColor = load > 85 ? 'critical' : load > 65 ? 'warning' : 'success'
 
@@ -70,11 +72,11 @@ function HighRiskRow({ p }) {
           <p className="text-xs text-text-muted">{p.age} yrs</p>
         </div>
       </td>
-      <td className="px-4 py-3"><Badge variant={riskMeta[p.risk].variant} className="capitalize">{p.risk}</Badge></td>
+      <td className="px-4 py-3"><Badge variant={riskMeta[p.risk]?.variant || 'outline'} className="capitalize">{p.risk}</Badge></td>
       <td className="px-4 py-3"><span className="text-xs bg-canvas rounded-full px-2 py-0.5 border border-border-subtle">{p.category}</span></td>
       <td className="px-4 py-3"><span className="text-xs text-text-muted">{p.last_visit}</span></td>
       <td className="px-4 py-3">
-        <span className={`text-xs font-semibold ${statusMeta[p.status].color}`}>{statusMeta[p.status].label}</span>
+        <span className={`text-xs font-semibold ${statusMeta[p.status]?.color || ''}`}>{statusMeta[p.status]?.label || p.status}</span>
       </td>
     </tr>
   )
@@ -82,7 +84,7 @@ function HighRiskRow({ p }) {
 
 // Simple bar chart using pure CSS
 function BarChart({ data, title }) {
-  const max = Math.max(...data.map(d => d.value))
+  const max = Math.max(1, ...data.map(d => d.value))
   return (
     <div>
       <p className="text-sm font-semibold text-text-primary mb-4">{title}</p>
@@ -103,58 +105,22 @@ function BarChart({ data, title }) {
 }
 
 
+async function loadDashboard() {
+  const [stats, facilities, highRisk, quality, weekly] = await Promise.all([getAdminDashboard(), getLiveFacilities(), getHighRiskFollowUps(), getQualityIndicators(), getWeeklyConsultations()])
+  return { stats, facilities, highRisk, quality, weekly }
+}
+
 export default function AdminDashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const name = user?.name || 'Admin'
 
-  const [stats, setStats] = useState({
-    total_patients: 0, active_doctors: 0, facilities: 0, today_consultations: 0,
-    pending_referrals: 0, high_risk_patients: 0, medicine_shortages: 0, diagnostic_delays: 0
-  })
-  const [facilities, setFacilities] = useState([])
-  const [highRisk, setHighRisk] = useState([])
-  const [qualityIndicators, setQualityIndicators] = useState([])
-  const [weeklyData, setWeeklyData] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const [dbStats, dbFacilities, dbHighRisk, dbQuality, dbWeekly] = await Promise.all([
-          getAdminDashboard().catch(e => { console.error('Stats error:', e); return null }),
-          getFacilities().catch(() => []),
-          getHighRiskFollowUps().catch(() => []),
-          getQualityIndicators().catch(() => null),
-          getWeeklyConsultations().catch(() => null)
-        ])
-
-        if (dbStats) setStats(dbStats)
-        if (dbFacilities && dbFacilities.length > 0) setFacilities(dbFacilities)
-        if (dbHighRisk && dbHighRisk.length > 0) {
-          const mappedHighRisk = dbHighRisk.map(hr => ({
-            id: hr.id,
-            name: hr.patients?.profiles?.full_name || hr.patients?.patient_code || 'Unknown',
-            age: hr.patients?.dob ? new Date().getFullYear() - new Date(hr.patients.dob).getFullYear() : 'N/A',
-            category: hr.category,
-            risk: hr.risk_level,
-            last_visit: hr.last_visit,
-            next_due: hr.next_due,
-            provider: hr.doctors?.profiles?.full_name || 'Unknown',
-            status: hr.status
-          }))
-          setHighRisk(mappedHighRisk)
-        }
-        if (dbQuality && dbQuality.length > 0) setQualityIndicators(dbQuality)
-        if (dbWeekly && dbWeekly.length > 0) setWeeklyData(dbWeekly)
-      } catch (err) {
-        console.error('Error loading admin data:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadData()
-  }, [])
+  const { data: live, loading, error } = useLiveRecords(loadDashboard)
+  const stats = live.stats || { total_patients:0, active_doctors:0, facilities:0, today_consultations:0, pending_referrals:0, high_risk_patients:0, medicine_shortages:0, diagnostic_delays:0 }
+  const facilities = live.facilities || []
+  const highRisk = (live.highRisk || []).map(hr => ({ id:hr.id, name:hr.patients?.profiles?.full_name || hr.patients?.patient_code || 'Unknown', age:'—', category:hr.category, risk:hr.risk_level, last_visit:hr.last_visit || '—', status:hr.status }))
+  const qualityIndicators = live.quality || []
+  const weeklyData = live.weekly || []
 
   const s = stats
 
@@ -164,12 +130,19 @@ export default function AdminDashboard() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-text-primary">Good morning, {name} 👋</h1>
+            <h1 className="text-2xl font-bold text-text-primary">{new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 17 ? 'Good afternoon' : 'Good evening'}, {name} 👋</h1>
             <p className="text-text-muted text-sm">Healthcare Operations Overview · {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
           </div>
-          <Button className="bg-brand-default text-white flex-shrink-0">Generate Report</Button>
+          <Button disabled={loading || !!error} onClick={() => {
+            const blob = new Blob([JSON.stringify(live, null, 2)], {type:'application/json'})
+            const url = URL.createObjectURL(blob)
+            const link = document.createElement('a'); link.href = url; link.download = 'healthcare-report.json'; link.click()
+            setTimeout(() => URL.revokeObjectURL(url), 1000)
+          }} className="bg-brand-default text-white flex-shrink-0">Generate Report</Button>
         </div>
 
+        {loading && <p>Loading live dashboard…</p>}
+        {error && <Alert type="error" title="Dashboard refresh failed">{error}</Alert>}
         {/* Alerts */}
         {s.medicine_shortages > 0 && (
           <Alert type="warning" title={`${s.medicine_shortages} medicine shortages detected`}>
@@ -179,10 +152,10 @@ export default function AdminDashboard() {
 
         {/* KPI Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4">
-          <KPICard title="Total Patients" value={s.total_patients.toLocaleString()} icon={Users} color="navy" trend={8} />
+          <KPICard title="Total Patients" value={s.total_patients.toLocaleString()} icon={Users} color="navy"  />
           <KPICard title="Active Doctors" value={s.active_doctors} icon={Stethoscope} color="teal" />
           <KPICard title="Facilities" value={s.facilities} icon={Building2} color="blue" />
-          <KPICard title="Today's Consultations" value={s.today_consultations} icon={Activity} color="success" trend={12} />
+          <KPICard title="Today's Consultations" value={s.today_consultations} icon={Activity} color="success"  />
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <KPICard title="Pending Referrals" value={s.pending_referrals} icon={ClipboardList} color="warning" />
@@ -198,7 +171,7 @@ export default function AdminDashboard() {
             <BarChart data={weeklyData} title="Weekly Consultations" />
             <div className="mt-4 flex justify-between text-xs text-text-muted">
               <span>Total this week: <strong className="text-text-primary">{weeklyData.reduce((acc, curr) => acc + curr.value, 0)}</strong></span>
-              <span className="text-status-success flex items-center gap-1"><TrendingUp className="w-3 h-3" />+12%</span>
+              <span>Last 7 days</span>
             </div>
           </div>
 
@@ -213,7 +186,7 @@ export default function AdminDashboard() {
                 <div key={m.label}>
                   <div className="flex justify-between text-xs mb-1.5">
                     <span className="text-text-muted">{m.label}</span>
-                    <span className={`font-semibold ${m.value >= m.target ? 'text-status-success' : 'text-status-warning'}`}>{m.value}% <span className="text-text-muted font-normal">/ {m.target}% target</span></span>
+                    <span className={`font-semibold ${m.value >= m.target ? 'text-status-success' : 'text-status-warning'}`}>{m.value === null ? 'No data' : `${m.value}%`} <span className="text-text-muted font-normal">/ {m.target}% target</span></span>
                   </div>
                   <ProgressBar value={m.value} max={100} color={m.color} showLabel={false} />
                 </div>

@@ -1,3 +1,4 @@
+import PatientPrescriptions from '../../components/PatientPrescriptions'
 /**
  * Diagnostics.jsx — /patient/diagnostics
  * ─────────────────────────────────────────────────────────────────────────────
@@ -21,7 +22,7 @@
  * - Professional loading skeleton, empty state, and error handling
  * - Preserves existing CareConnect layout, sidebar, header, and design system
  */
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -67,133 +68,31 @@ function getTestCategory(testName = '') {
   return 'Diagnostic Laboratory'
 }
 
-// ── Client-side Clinical PDF Generator Helper (guarantees valid PDF if no file uploaded) ──
-function generateClinicalReportBlob(dx, patientName = 'Patient') {
-  const docName = dx.doctors?.profiles?.full_name || (dx.doctors?.specialization ? `Dr. (${dx.doctors.specialization})` : 'Dr. Diya Thakrar')
-  const facName = dx.facilities?.name || 'CareConnect Hospital Laboratory'
-  const dateStr = dx.scheduled_at ? new Date(dx.scheduled_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString('en-IN')
-  const resultNotes = dx.result_notes || 'All tested clinical parameters are within acceptable biological reference intervals.'
-  const statusLabel = (dx.status || 'Verified').replace(/_/g, ' ').toUpperCase()
-
-  const content = [
-    'BT',
-    '/F1 18 Tf',
-    '50 730 Td (' + facName.replace(/[()]/g, '') + ') Tj',
-    '/F1 12 Tf',
-    '0 -25 Td (OFFICIAL CLINICAL DIAGNOSTIC REPORT) Tj',
-    '/F1 10 Tf',
-    '0 -30 Td (Patient: ' + patientName.replace(/[()]/g, '') + ') Tj',
-    '0 -18 Td (Test Name: ' + (dx.test_name || 'Diagnostic Panel').replace(/[()]/g, '') + ') Tj',
-    '0 -18 Td (Referring Doctor: ' + docName.replace(/[()]/g, '') + ') Tj',
-    '0 -18 Td (Date of Examination: ' + dateStr + ') Tj',
-    '0 -18 Td (Report Status: ' + statusLabel + ') Tj',
-    '/F1 12 Tf',
-    '0 -35 Td (LABORATORY FINDINGS & INTERPRETATION:) Tj',
-    '/F1 10 Tf',
-    '0 -22 Td (' + resultNotes.replace(/[()]/g, '').slice(0, 80) + ') Tj',
-    '0 -18 Td (Methodology: Automated Photometric / Immuno-turbidimetric Assay) Tj',
-    '0 -18 Td (Reference Quality: Verified by Senior Consultant Pathologist) Tj',
-    '/F1 8 Tf',
-    '0 -50 Td (CareConnect National Health Mission - Digital Diagnostic Record) Tj',
-    'ET'
-  ].join('\n')
-
-  const streamLength = new TextEncoder().encode(content).length
-  const pdfString = 
-    '%PDF-1.4\n' +
-    '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n' +
-    '2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n' +
-    '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj\n' +
-    '4 0 obj << /Length ' + streamLength + ' >>\n' +
-    'stream\n' + content + '\nendstream\nendobj\n' +
-    '5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n' +
-    'xref\n' +
-    '0 6\n' +
-    '0000000000 65535 f \n' +
-    '0000000009 00000 n \n' +
-    '0000000058 00000 n \n' +
-    '0000000115 00000 n \n' +
-    '0000000244 00000 n \n' +
-    '0000000000 00000 n \n' +
-    'trailer << /Size 6 /Root 1 0 R >>\n' +
-    'startxref\n' +
-    '400\n' +
-    '%%EOF'
-
-  return new Blob([pdfString], { type: 'application/pdf' })
-}
-
 // ── View Result / Report Modal ─────────────────────────────────────────────
-function ResultModal({ open, onClose, diagnostic, patientName, onDownload, isDownloading }) {
+function ResultModal({ open, onClose, diagnostic, onDownload, isDownloading }) {
   const [url, setUrl]         = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState(null)
-  const blobUrlRef            = useRef(null)
-
   useEffect(() => {
-    if (!open || !diagnostic) return
+    let active = true
     setUrl(null)
     setError(null)
+    setLoading(false)
+    if (!open || !diagnostic?.report_url) return
     setLoading(true)
-
-    // Clean up previous blob URL if any
-    if (blobUrlRef.current) {
-      URL.revokeObjectURL(blobUrlRef.current)
-      blobUrlRef.current = null
-    }
-
-    const hasReport = !!(
-      diagnostic.report_url ||
-      diagnostic.result_notes ||
-      ['result_ready', 'reviewed', 'completed'].includes(diagnostic.status)
-    )
-
-    if (hasReport) {
-      if (diagnostic.report_url) {
-        getDiagnosticSignedUrl(diagnostic.report_url)
-          .then(signedUrl => setUrl(signedUrl))
-          .catch(err => {
-            console.warn('Fallback to generated clinical report:', err)
-            const blob = generateClinicalReportBlob(diagnostic, patientName)
-            const bUrl = URL.createObjectURL(blob)
-            blobUrlRef.current = bUrl
-            setUrl(bUrl)
-          })
-          .finally(() => setLoading(false))
-      } else {
-        const blob = generateClinicalReportBlob(diagnostic, patientName)
-        const bUrl = URL.createObjectURL(blob)
-        blobUrlRef.current = bUrl
-        setUrl(bUrl)
-        setLoading(false)
-      }
-    } else {
-      setLoading(false)
-    }
-
-    return () => {
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current)
-        blobUrlRef.current = null
-      }
-    }
-  }, [open, diagnostic, patientName])
-
-  const handleClose = () => {
-    setUrl(null)
-    setError(null)
-    if (blobUrlRef.current) {
-      URL.revokeObjectURL(blobUrlRef.current)
-      blobUrlRef.current = null
-    }
-    onClose()
-  }
+    getDiagnosticSignedUrl(diagnostic.report_url)
+      .then(value => { if (active) setUrl(value) })
+      .catch(err => { if (active) setError(err.message || 'Report could not be loaded.') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [open, diagnostic])
+  const handleClose = onClose
 
   if (!diagnostic) return null
 
   const doctorName = diagnostic.doctors?.profiles?.full_name || 
-    (diagnostic.doctors?.specialization ? `Dr. (${diagnostic.doctors.specialization})` : 'Dr. Diya Thakrar')
-  const facilityName = diagnostic.facilities?.name || 'CareConnect Regional Hospital'
+    (diagnostic.doctors?.specialization ? `Dr. (${diagnostic.doctors.specialization})` : 'Doctor not recorded')
+  const facilityName = diagnostic.facilities?.name || 'Facility not recorded'
   const requestedDate = diagnostic.created_at ? new Date(diagnostic.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
   const resultDate = diagnostic.updated_at ? new Date(diagnostic.updated_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : requestedDate
   const statusMeta = STATUS_META[diagnostic.status] || { label: diagnostic.status, variant: 'outline' }
@@ -233,7 +132,7 @@ function ResultModal({ open, onClose, diagnostic, patientName, onDownload, isDow
             <Activity className="w-3.5 h-3.5 text-brand-secondary" /> Clinical Findings & Interpretation
           </h4>
           <p className="text-sm font-medium text-text-primary bg-canvas p-3 rounded-lg border border-border-subtle leading-relaxed">
-            {diagnostic.result_notes || (isCompleted ? 'All tested laboratory parameters are within normal biological reference intervals.' : 'Diagnostic sample is currently being analyzed by the pathology department. Findings will be available upon verification.')}
+            {diagnostic.result_notes || 'No result notes have been recorded yet.'}
           </p>
         </div>
 
@@ -262,7 +161,7 @@ function ResultModal({ open, onClose, diagnostic, patientName, onDownload, isDow
               style={{ height: '52vh', minHeight: '340px' }}
             />
             <div className="flex items-center gap-2 justify-between pt-2 border-t border-border-subtle flex-wrap">
-              <span className="text-xs text-text-muted">CareConnect Verified Diagnostic Report</span>
+              <span className="text-xs text-text-muted">Uploaded diagnostic report</span>
               <div className="flex items-center gap-3">
                 <a
                   href={url}
@@ -349,32 +248,12 @@ export default function Diagnostics() {
       let downloadUrl = null
       let isBlob = false
 
-      if (dx.report_url) {
-        try {
-          const rawUrl = await getDiagnosticSignedUrl(dx.report_url)
-          // Attempt to fetch as blob for seamless native browser PDF download
-          try {
-            const res = await fetch(rawUrl)
-            if (res.ok) {
-              const fileBlob = await res.blob()
-              downloadUrl = URL.createObjectURL(fileBlob)
-              isBlob = true
-            } else {
-              downloadUrl = rawUrl
-            }
-          } catch {
-            downloadUrl = rawUrl
-          }
-        } catch (e) {
-          console.warn('Fallback to generated PDF for download:', e)
-        }
-      }
-
-      if (!downloadUrl) {
-        const blob = generateClinicalReportBlob(dx, user?.name)
-        downloadUrl = URL.createObjectURL(blob)
-        isBlob = true
-      }
+      if (!dx.report_url) throw new Error('No report file has been uploaded. You can view the recorded result notes on this page.')
+      const rawUrl = await getDiagnosticSignedUrl(dx.report_url)
+      const res = await fetch(rawUrl)
+      if (!res.ok) throw new Error('The report file could not be downloaded.')
+      downloadUrl = URL.createObjectURL(await res.blob())
+      isBlob = true
 
       // Trigger actual PDF file download
       const fileName = `${(dx.test_name || 'Diagnostic').replace(/[^a-zA-Z0-9_-]/g, '_')}_Report.pdf`
@@ -398,10 +277,10 @@ export default function Diagnostics() {
   // ── Helpers ──────────────────────────────────────────────────────────────
   const getDoctorName = (dx) =>
     dx.doctors?.profiles?.full_name || 
-    (dx.doctors?.specialization ? `Dr. (${dx.doctors.specialization})` : 'Dr. Diya Thakrar')
+    (dx.doctors?.specialization ? `Dr. (${dx.doctors.specialization})` : 'Doctor not recorded')
 
   const getFacilityName = (dx) =>
-    dx.facilities?.name || 'CareConnect Regional Hospital'
+    dx.facilities?.name || 'Facility not recorded'
 
   const getDisplayDate = (dx) => {
     const raw = dx.created_at || dx.scheduled_at
@@ -422,6 +301,7 @@ export default function Diagnostics() {
           <p className="text-text-muted text-sm">Track your test requests and results</p>
         </div>
 
+        <PatientPrescriptions />
         {/* ── Loading skeleton state ── */}
         {loading && (
           <div className="space-y-4">

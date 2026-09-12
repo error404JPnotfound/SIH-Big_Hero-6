@@ -15,7 +15,7 @@ const ROLES = [
 export default function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { signInWithEmail, signInWithPhone, verifyOtp, loginDemo } = useAuth()
+  const { signInWithEmail, signInWithPhone, verifyOtp, resetPassword, updatePassword, passwordRecovery, loginDemo } = useAuth()
 
   const [step, setStep]               = useState('role')     // role | login | otp
   const [tab, setTab]                 = useState('phone')    // phone | email
@@ -37,6 +37,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [otp, setOtp]           = useState(['','','','','',''])
   const [showPass, setShowPass] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
 
   // UI states
   const [loading, setLoading]   = useState(false)
@@ -44,6 +46,13 @@ export default function LoginPage() {
   const [info, setInfo]         = useState('')
 
   const clearFeedback = () => { setError(''); setInfo('') }
+
+  useEffect(() => {
+    if (passwordRecovery) {
+      setStep('recovery')
+      clearFeedback()
+    }
+  }, [passwordRecovery])
 
   // ── Step 1 → 2 ────────────────────────────────────────────────
   const handleRoleSelect = (role) => {
@@ -81,11 +90,11 @@ export default function LoginPage() {
     if (!email || !password) { setError('Enter email and password.'); return }
     setLoading(true)
     try {
-      await signInWithEmail(email, password)
-      navigate(`/${selectedRole}`)
+      const result = await signInWithEmail(email, password, selectedRole)
+      navigate(`/${result.role}`, { replace: true })
     } catch (err) {
       console.error(err)
-      setError('We couldn’t sign you in with those details. Please try again.')
+      setError(err.message || 'We couldn’t sign you in with those details. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -104,8 +113,8 @@ export default function LoginPage() {
       clearFeedback()
       try {
         const formattedPhone = '+91' + phone.replace(/\D/g, '').slice(-10)
-        await verifyOtp(formattedPhone, next.join(''))
-        navigate(`/${selectedRole}`)
+        const result = await verifyOtp(formattedPhone, next.join(''), selectedRole)
+        navigate(`/${result.role}`, { replace: true })
       } catch (err) {
         console.error(err)
         setError('That code didn’t work. Please check and try again.')
@@ -114,6 +123,50 @@ export default function LoginPage() {
       } finally {
         setLoading(false)
       }
+    }
+  }
+
+  const handleForgotPassword = async () => {
+    clearFeedback()
+    if (!email.trim()) {
+      setError('Enter your email address first, then select Forgot password.')
+      return
+    }
+    setLoading(true)
+    try {
+      await resetPassword(email)
+      setInfo('Password reset instructions were sent to your email address.')
+    } catch (err) {
+      console.error(err)
+      setError(err.message || 'Unable to send password reset instructions.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePasswordUpdate = async (e) => {
+    e.preventDefault()
+    clearFeedback()
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setError('The passwords do not match.')
+      return
+    }
+    setLoading(true)
+    try {
+      await updatePassword(newPassword)
+      setNewPassword('')
+      setConfirmPassword('')
+      setStep('role')
+      setInfo('Password updated. You can now sign in with your new password.')
+    } catch (err) {
+      console.error(err)
+      setError(err.message || 'Unable to update your password.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -288,7 +341,9 @@ export default function LoginPage() {
                     </button>
                   </div>
                   <div className="text-right">
-                    <a href="#" className="text-xs text-brand-default hover:underline">Forgot password?</a>
+                    <button type="button" onClick={handleForgotPassword} className="text-xs text-brand-default hover:underline">
+                      Forgot password?
+                    </button>
                   </div>
                   {error && (
                     <div className="flex items-start gap-2 bg-status-critical-bg/50 border border-status-critical/20 px-3 py-2 rounded-lg text-status-critical">
@@ -296,6 +351,7 @@ export default function LoginPage() {
                       <p className="text-xs">{error}</p>
                     </div>
                   )}
+                  {info && <p className="text-xs text-status-success bg-status-success-bg px-3 py-2 rounded-lg">{info}</p>}
                   <Button type="submit" className="w-full bg-brand-default text-white" size="lg" loading={loading}>
                     Sign In
                   </Button>
@@ -385,6 +441,29 @@ export default function LoginPage() {
                   Skip — Enter Demo Mode
                 </Button>
               </div>
+            </>
+          )}
+
+          {step === 'recovery' && (
+            <>
+              <div className="mb-6">
+                <span className="text-3xl">🔐</span>
+                <h1 className="text-2xl font-bold text-text-primary mt-2">Create a new password</h1>
+                <p className="text-sm text-text-muted">Enter a new password for your CareConnect account.</p>
+              </div>
+              <form onSubmit={handlePasswordUpdate} className="space-y-4">
+                <Input label="New Password" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+                <Input label="Confirm New Password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+                {error && (
+                  <div className="flex items-start gap-2 bg-status-critical-bg/50 border border-status-critical/20 px-3 py-2 rounded-lg text-status-critical">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs">{error}</p>
+                  </div>
+                )}
+                <Button type="submit" className="w-full bg-brand-default text-white" size="lg" loading={loading}>
+                  Update Password
+                </Button>
+              </form>
             </>
           )}
         </div>

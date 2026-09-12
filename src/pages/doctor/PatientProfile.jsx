@@ -1,3 +1,6 @@
+import { Modal } from '../../components/ui/Modal'
+import { PrescriptionForm } from './DoctorQueue'
+import { createPrescription } from '../../lib/db'
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import AppLayout from '../../components/layout/AppLayout'
@@ -32,6 +35,18 @@ export default function PatientProfile() {
   const [loading, setLoading] = useState(!!patientId && isDoctorSession)
   const [error, setError] = useState('')
   const [data, setData] = useState(null)
+  const [prescribing, setPrescribing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [prescriptionError, setPrescriptionError] = useState('')
+  const savePrescription = async items => {
+    setSaving(true); setPrescriptionError('')
+    try {
+      await createPrescription(patientId, null, items)
+      setPrescribing(false)
+      setData(await getPatientProfileById(patientId))
+    } catch (err) { setPrescriptionError(err.message) }
+    finally { setSaving(false) }
+  }
 
   const [patients, setPatients] = useState([])
   useEffect(() => {
@@ -144,6 +159,10 @@ export default function PatientProfile() {
 
   return (
     <AppLayout role="doctor">
+      <Modal open={prescribing} onClose={() => { if (!saving) setPrescribing(false) }} title={`New Prescription — ${data?.patient?.profiles?.full_name || ''}`} size="lg">
+        {prescriptionError && <p role="alert" className="text-status-critical">{prescriptionError}</p>}
+        {prescribing && <PrescriptionForm onSave={savePrescription} loading={saving} />}
+      </Modal>
       <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
         {error && <Alert type="critical" title="Error">{error}</Alert>}
 
@@ -248,8 +267,8 @@ export default function PatientProfile() {
                 <div className="bg-surface-elevated rounded-xl border border-border-subtle p-5">
                   <h3 className="font-semibold text-text-primary mb-3">Quick Actions</h3>
                   <div className="space-y-2">
-                    <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => navigate('/doctor/queue')}>
-                      New Consultation / Prescription
+                    <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => { setPrescriptionError(''); setPrescribing(true) }}>
+                      New Prescription
                     </Button>
                     <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => navigate('/doctor/queue')}>
                       Request Diagnostic
