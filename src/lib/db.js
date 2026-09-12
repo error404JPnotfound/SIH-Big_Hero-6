@@ -313,8 +313,10 @@ export async function getMyPrescriptions() {
 
 /** Create a prescription with items */
 export async function createPrescription(patientId, consultationId, items) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Please sign in to continue.')
   const doctorResult = await supabase
-    .from('doctors').select('id').single()
+    .from('doctors').select('id').eq('profile_id', user.id).single()
   if (doctorResult.error) throw doctorResult.error
 
   // Insert prescription header
@@ -404,8 +406,10 @@ export async function getMyDiagnostics() {
 
 /** Doctor: request a diagnostic test */
 export async function requestDiagnostic({ patientId, facilityId, testName, scheduledAt }) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Please sign in to continue.')
   const doctorResult = await supabase
-    .from('doctors').select('id').single()
+    .from('doctors').select('id').eq('profile_id', user.id).single()
   if (doctorResult.error) throw doctorResult.error
 
   const { data, error } = await supabase
@@ -512,6 +516,18 @@ export async function getFacilities() {
   return data
 }
 
+/** Get a single facility by ID */
+export async function getFacilityById(id) {
+  const { data, error } = await supabase
+    .from('facilities')
+    .select('*')
+    .eq('id', id)
+    .single()
+  if (error) throw error
+  return data
+}
+
+
 /** Get doctors at a facility */
 export async function getDoctorsByFacility(facilityId) {
   const { data, error } = await supabase
@@ -606,4 +622,185 @@ export async function submitTriage({ patientId, symptom, duration, severity, has
   })
   if (error) throw error
   return data  // 'routine' | 'priority' | 'urgent' | 'emergency'
+}
+
+// ──────────────────────────────────────────────────────────────
+// DOCTOR SPECIALIZED HELPERS
+// ──────────────────────────────────────────────────────────────
+
+/** Fetch doctor profile by Auth user profile ID */
+export async function getDoctorByProfileId(profileId) {
+  const { data, error } = await supabase
+    .from('doctors')
+    .select(`
+      id, facility_id, specialization, reg_number, is_available,
+      facilities:facility_id (id, name, type, address, district)
+    `)
+    .eq('profile_id', profileId)
+    .single()
+  if (error) throw error
+  return data
+}
+
+/** Update doctor availability toggle */
+export async function updateDoctorAvailability(doctorId, isAvailable) {
+  const { data, error } = await supabase
+    .from('doctors')
+    .update({ is_available: isAvailable, updated_at: new Date().toISOString() })
+    .eq('id', doctorId)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+/** Get full doctor queue for facility & optional doctor filter */
+export async function getDoctorQueue(facilityId, doctorId = null) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const { data, error } = await supabase
+    .from('queues')
+    .select(`
+      id, queue_number, position, status, called_at, started_at, created_at,
+      appointments:appointment_id (
+        id, doctor_id, reason, mode, scheduled_at, status,
+        patients:patient_id (
+          id, patient_code, dob, gender, blood_group, allergies, is_high_risk,
+          profiles:profile_id (full_name, phone, email)
+        )
+      )
+    `)
+    .eq('facility_id', facilityId)
+    .gte('created_at', today.toISOString())
+    .order('position', { ascending: true })
+
+  if (error) throw error
+
+  if (doctorId) {
+    return (data || []).filter(item => item.appointments?.doctor_id === doctorId)
+  }
+  return data || []
+}
+
+/** Fetch full patient profile including history, vitals, referrals, diagnostics, and prescriptions */
+export async function getPatientProfileById(patientId) {
+  const { data: patient, error: pErr } = await supabase
+    .from('patients')
+    .select(`
+      id, patient_code, dob, gender, blood_group, address, emergency_contact, allergies, is_high_risk, created_at,
+      profiles:profile_id (full_name, phone, email)
+    `)
+    .eq('id', patientId)
+    .single()
+
+  if (pErr) throw pErr
+
+  const [vitalsRes, apptsRes, referralsRes, diagnosticsRes, prescriptionsRes, diagnosesRes] = await Promise.all([
+    supabase
+      .from('vitals')
+      .select('*')
+      .eq('patient_id', patientId)
+      .order('recorded_at', { ascending: false })
+      .limit(10),
+
+    supabase
+      .from('appointments')
+      .select(`
+        id, scheduled_at, mode, status, reason, notes, created_at,
+        doctors:doctor_id ( specialization, profiles:profile_id (full_name) ),
+        facilities:facility_id ( name )
+      `)
+      .eq('patient_id', patientId)
+      .order('scheduled_at', { ascending: false })
+      .limit(20),
+
+    supabase
+      .from('referrals')
+      .select(`
+        id, department, reason, urgency, status, notes, created_at,
+        from_facility:from_facility ( name ),
+        to_facility:to_facility ( name ),
+        referring_doctor:referring_doctor ( profiles:profile_id (full_name) )
+      `)
+      .eq('patient_id', patientId)
+      .order('created_at', { ascending: false }),
+
+    supabase
+      .from('diagnostics')
+      .select(`
+        id, test_name, status, scheduled_at, result_notes, report_url, created_at,
+        facilities:facility_id ( name ),
+        requested_by:requested_by ( profiles:profile_id (full_name) )
+      `)
+      .eq('patient_id', patientId)
+      .order('created_at', { ascending: false }),
+
+    supabase
+      .from('prescriptions')
+      .select(`
+        id, issued_at,
+        doctors:doctor_id ( profiles:profile_id (full_name) ),
+        prescription_items ( id, medicine_name, dosage, frequency, duration, instructions )
+      `)
+      .eq('patient_id', patientId)
+      .order('issued_at', { ascending: false }),
+    supabase.from('diagnoses').select('id, description, is_chronic, created_at').eq('patient_id', patientId).order('created_at', { ascending: false }),
+  ])
+
+  for (const result of [vitalsRes, apptsRes, referralsRes, diagnosticsRes, prescriptionsRes, diagnosesRes]) {
+    if (result.error) throw result.error
+  }
+
+  return {
+    patient,
+    diagnoses: diagnosesRes.data || [],
+    vitals: vitalsRes.data || [],
+    appointments: apptsRes.data || [],
+    referrals: referralsRes.data || [],
+    diagnostics: diagnosticsRes.data || [],
+    prescriptions: prescriptionsRes.data || [],
+  }
+}
+
+/** Save complete consultation notes */
+export async function saveConsultationComplete({
+  appointmentId,
+  patientId,
+  doctorId,
+  facilityId,
+  chiefComplaint,
+  clinicalFindings,
+  assessment,
+  plan,
+}) {
+  const { data: consultation, error: cErr } = await supabase
+    .from('consultations')
+    .insert({
+      appointment_id: appointmentId || null,
+      patient_id: patientId,
+      doctor_id: doctorId,
+      facility_id: facilityId || null,
+      chief_complaint: chiefComplaint,
+      clinical_findings: clinicalFindings,
+      assessment: assessment,
+      plan: plan,
+      started_at: new Date().toISOString(),
+      ended_at: new Date().toISOString(),
+    })
+    .select()
+    .single()
+
+  if (cErr) throw cErr
+  return consultation
+}
+
+
+export async function getDoctorPatients(profileId) {
+  const doctor = await getDoctorByProfileId(profileId)
+  const { data, error } = await supabase.from('appointments')
+    .select('patients:patient_id (id, patient_code, profiles:profile_id (full_name))')
+    .eq('doctor_id', doctor.id)
+  if (error) throw error
+  return [...new Map((data || []).filter(row => row.patients).map(row => [row.patients.id, row.patients])).values()]
 }

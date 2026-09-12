@@ -14,8 +14,8 @@ import {
   getMyAppointments, getMyPatientRecord, getMyVitals,
   getMyReferrals, getMyDiagnostics, getMyNotifications,
   getFacilities, getDoctorsByFacility, getMyPrescriptions,
-  getDoctorTodayAppointments, getFacilityQueue,
-  getHighRiskFollowUps, getAdminDashboard, searchMedicines,
+  getDoctorTodayAppointments, getFacilityQueue, getDoctorByProfileId,
+  getPatientProfileById, getHighRiskFollowUps, getAdminDashboard, searchMedicines,
   subscribeToQueue, subscribeToNotifications, markNotificationsRead,
 } from '../lib/db'
 import { useAuth } from '../context/AuthContext'
@@ -176,6 +176,26 @@ export function useLiveQueue(facilityId) {
   }, [facilityId, demoMode])
 
   return { queue, loading, error }
+}
+
+/** Doctor's profile info */
+export function useDoctorProfile() {
+  const { user, demoMode } = useAuth()
+  return useAsync(
+    () => getDoctorByProfileId(user?.id),
+    [user?.id],
+    !!user?.id && !demoMode
+  )
+}
+
+/** Detailed patient profile data (vitals, appts, referrals, etc.) */
+export function usePatientProfileDetails(patientId) {
+  const { demoMode } = useAuth()
+  return useAsync(
+    () => getPatientProfileById(patientId),
+    [patientId],
+    !!patientId && !demoMode
+  )
 }
 
 // ──────────────────────────────────────────────────────────────

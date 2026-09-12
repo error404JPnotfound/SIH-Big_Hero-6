@@ -6,17 +6,18 @@ import LanguageSwitcher from '../ui/LanguageSwitcher'
 import {
   HeartPulse, LayoutDashboard, Calendar, ClipboardList, Users, Activity,
   FileText, Pill, Stethoscope, Bell, Settings, LogOut, Menu, X, ChevronDown,
-  AlertCircle, ShieldCheck, TrendingUp, Building2, Search
+  AlertCircle, ShieldCheck, TrendingUp, Building2, Search, MapPin
 } from 'lucide-react'
 
 const NAV_PATIENT = [
-  { href: '/patient', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/patient/appointments', icon: Calendar, label: 'Appointments' },
-  { href: '/patient/records', icon: FileText, label: 'My Records' },
-  { href: '/patient/referrals', icon: ClipboardList, label: 'Referrals' },
-  { href: '/patient/diagnostics', icon: Activity, label: 'Diagnostics' },
-  { href: '/patient/medicines', icon: Pill, label: 'Medicines' },
-  { href: '/patient/queue', icon: Users, label: 'My Queue' },
+  { href: '/patient',              icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/patient/facilities',   icon: MapPin,          label: 'Find Healthcare' },
+  { href: '/patient/appointments', icon: Calendar,        label: 'Appointments' },
+  { href: '/patient/records',      icon: FileText,        label: 'My Records' },
+  { href: '/patient/referrals',    icon: ClipboardList,   label: 'Referrals' },
+  { href: '/patient/diagnostics',  icon: Activity,        label: 'Diagnostics' },
+  { href: '/patient/medicines',    icon: Pill,            label: 'Medicines' },
+  { href: '/patient/queue',        icon: Users,           label: 'My Queue' },
 ]
 
 const NAV_DOCTOR = [

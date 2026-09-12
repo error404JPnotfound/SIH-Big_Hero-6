@@ -1,212 +1,561 @@
-import { useState } from 'react'
+/**
+ * Appointments.jsx — /patient/appointments
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Appointment booking and management page.
+ * Reads facilityId & doctorId from URL query string to pre-fill and auto-open modal.
+ * Supports consultation mode toggle, facility & doctor dropdowns, slot picker,
+ * symptoms textarea, and upcoming vs past appointments with cancellation.
+ */
+import { useState, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import AppLayout from '../../components/layout/AppLayout'
 import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
-import { Input, Select } from '../../components/ui/Input'
 import { Modal } from '../../components/ui/Modal'
-import { MOCK_APPOINTMENTS } from '../../lib/mockData'
-import { Calendar, Clock, MapPin, Video, User, CheckCircle2, ChevronRight } from 'lucide-react'
+import { appointmentService, facilityService, liveOsmCache } from '../../services/api'
+import { MOCK_FACILITIES, MOCK_DOCTORS_BY_FACILITY } from '../../lib/mockData'
+import {
+  Calendar, Clock, MapPin, Video, User, CheckCircle2,
+  AlertCircle, X, Loader2, Stethoscope, Ban, FileText
+} from 'lucide-react'
+import { cn } from '../../lib/utils'
 
-const DOCTORS = [
-  { id: 'd1', name: 'Dr. Arjun Mehta', spec: 'General Physician', facility: 'PHC Khandwa', slots: ['09:00', '09:30', '10:00', '11:00', '14:00'], next_available: 'Today' },
-  { id: 'd2', name: 'Dr. Sunita Rao', spec: 'Gynaecologist', facility: 'District Hospital', slots: ['10:00', '10:30', '15:00', '15:30'], next_available: 'Tomorrow' },
-  { id: 'd3', name: 'Dr. Priyanka Das', spec: 'Paediatrician', facility: 'CHC Sanawad', slots: ['09:00', '09:30', '11:00'], next_available: 'Today' },
+const TIME_SLOTS = [
+  '09:00', '09:30', '10:00', '10:30',
+  '11:00', '11:30', '14:00', '14:30',
+  '15:00', '15:30', '16:00', '16:30'
 ]
 
-const STEPS = ['Service', 'Doctor', 'Date & Time', 'Mode', 'Confirm']
+function BookingModal({ isOpen, onClose, initialFacilityId, initialDoctorId, onBooked }) {
+  const [facilities, setFacilities] = useState([])
+  const [selectedFacilityId, setSelectedFacilityId] = useState(initialFacilityId || '')
+  const [selectedDoctorId, setSelectedDoctorId] = useState(initialDoctorId || '')
+  const [consultationType, setConsultationType] = useState('in-person')
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [timeSlot, setTimeSlot] = useState('10:00')
+  const [symptoms, setSymptoms] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [confirmedAppt, setConfirmedAppt] = useState(null)
 
-function BookingWizard({ onClose }) {
-  const [step, setStep] = useState(0)
-  const [form, setForm] = useState({ service: '', doctor: null, date: '', slot: '', mode: 'in-person' })
-  const [booked, setBooked] = useState(false)
+  // Load facilities for dropdown (combine curated + live cache)
+  useEffect(() => {
+    let list = [...MOCK_FACILITIES]
 
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+    // If an initial facility ID is from live OSM cache, add it if not already present
+    if (initialFacilityId && !list.some(f => f.id === initialFacilityId || f._id === initialFacilityId)) {
+      if (liveOsmCache.has(initialFacilityId)) {
+        list.unshift(liveOsmCache.get(initialFacilityId))
+      } else {
+        list.unshift({
+          id: initialFacilityId,
+          _id: initialFacilityId,
+          name: 'Selected Healthcare Centre',
+          type: 'Clinic',
+          district: 'Khandwa'
+        })
+      }
+    }
+    setFacilities(list)
+    if (!selectedFacilityId && list.length > 0) {
+      setSelectedFacilityId(list[0].id)
+    }
+  }, [initialFacilityId])
 
-  const confirmBooking = () => {
-    setTimeout(() => setBooked(true), 500)
+  // Get doctors for currently selected facility
+  const availableDoctors = useMemo(() => {
+    if (!selectedFacilityId) return []
+    const docs = MOCK_DOCTORS_BY_FACILITY[selectedFacilityId] || []
+    if (docs.length > 0) return docs
+
+    // Default fallback doctor for facilities without registered roster (like live OSM)
+    return [
+      { id: 'doc-default', name: 'On-Duty Medical Officer', specialization: 'General OPD / Family Medicine' }
+    ]
+  }, [selectedFacilityId])
+
+  // Ensure selected doctor is valid for the selected facility
+  useEffect(() => {
+    if (availableDoctors.length > 0) {
+      const exists = availableDoctors.some(d => d.id === selectedDoctorId)
+      if (!exists) {
+        setSelectedDoctorId(availableDoctors[0].id)
+      }
+    }
+  }, [selectedFacilityId, availableDoctors])
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!date || !timeSlot) {
+      setError('Please select both a date and time slot.')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    const selectedFacility = facilities.find(f => f.id === selectedFacilityId || f._id === selectedFacilityId)
+    const selectedDoctor = availableDoctors.find(d => d.id === selectedDoctorId)
+
+    try {
+      const booked = await appointmentService.book({
+        facilityId: selectedFacilityId,
+        facilityName: selectedFacility?.name || 'Healthcare Centre',
+        doctorId: selectedDoctorId,
+        doctorName: selectedDoctor?.name || 'Attending Physician',
+        date,
+        timeSlot,
+        consultationType,
+        symptoms: symptoms.trim()
+      })
+
+      setConfirmedAppt(booked)
+      onBooked?.(booked)
+    } catch (err) {
+      setError(err.message || 'Failed to book appointment. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  if (booked) {
+  const handleClose = () => {
+    setConfirmedAppt(null)
+    setError('')
+    onClose()
+  }
+
+  if (confirmedAppt) {
     return (
-      <div className="text-center py-8">
-        <div className="w-20 h-20 rounded-full bg-status-success-bg flex items-center justify-center mx-auto mb-4">
-          <CheckCircle2 className="w-10 h-10 text-status-success" />
+      <Modal open={isOpen} onClose={handleClose} title="Appointment Booked!" size="md">
+        <div className="text-center py-4">
+          <div className="w-16 h-16 rounded-full bg-success-bg flex items-center justify-center mx-auto mb-3">
+            <CheckCircle2 className="w-9 h-9 text-success" />
+          </div>
+          <h3 className="text-lg font-bold text-navy mb-1">Appointment Confirmed</h3>
+          <p className="text-muted text-xs mb-4">Your appointment has been registered with the facility.</p>
+
+          <div className="bg-bg rounded-xl p-4 text-left space-y-2 text-xs mb-5 border border-border">
+            <div className="flex justify-between">
+              <span className="text-muted">Facility:</span>
+              <span className="font-semibold text-navy">{confirmedAppt.facility}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted">Doctor:</span>
+              <span className="font-semibold text-navy">{confirmedAppt.doctor}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted">Date & Time:</span>
+              <span className="font-semibold text-navy">{confirmedAppt.date} at {confirmedAppt.timeSlot || confirmedAppt.time}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted">Consultation Mode:</span>
+              <span className="font-semibold text-teal capitalize">{confirmedAppt.consultationType || confirmedAppt.mode}</span>
+            </div>
+            {confirmedAppt.symptoms && (
+              <div className="flex justify-between">
+                <span className="text-muted">Reason/Symptoms:</span>
+                <span className="font-medium text-navy truncate max-w-[200px]">{confirmedAppt.symptoms}</span>
+              </div>
+            )}
+            <div className="flex justify-between pt-2 border-t border-border">
+              <span className="text-muted">Queue Number:</span>
+              <span className="font-bold text-teal text-sm">{confirmedAppt.queueNo || confirmedAppt.queue_no || 'A-032'}</span>
+            </div>
+          </div>
+
+          <Button className="w-full bg-teal text-white" onClick={handleClose}>
+            Done
+          </Button>
         </div>
-        <h3 className="text-xl font-bold text-text-primary mb-2">Appointment Confirmed!</h3>
-        <p className="text-text-muted mb-6 text-sm">Your appointment has been booked successfully.</p>
-        <div className="bg-canvas rounded-xl p-4 text-left space-y-2 text-sm mb-6">
-          <div className="flex justify-between"><span className="text-text-muted">Doctor</span><span className="font-medium">{form.doctor?.name}</span></div>
-          <div className="flex justify-between"><span className="text-text-muted">Date</span><span className="font-medium">{form.date}</span></div>
-          <div className="flex justify-between"><span className="text-text-muted">Time</span><span className="font-medium">{form.slot}</span></div>
-          <div className="flex justify-between"><span className="text-text-muted">Mode</span><span className="font-medium capitalize">{form.mode}</span></div>
-          <div className="flex justify-between"><span className="text-text-muted">Queue No.</span><span className="font-bold text-brand-default">A-028</span></div>
-        </div>
-        <Button className="w-full bg-brand-default text-white" onClick={onClose}>Done</Button>
-      </div>
+      </Modal>
     )
   }
 
   return (
-    <div>
-      {/* Step indicator */}
-      <div className="flex items-center gap-1 mb-6">
-        {STEPS.map((s, i) => (
-          <div key={s} className="flex items-center gap-1 flex-1">
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${i <= step ? 'bg-brand-default text-white' : 'bg-border text-text-muted'}`}>{i + 1}</div>
-            {i < STEPS.length - 1 && <div className={`flex-1 h-0.5 ${i < step ? 'bg-brand-default' : 'bg-border'}`} />}
+    <Modal open={isOpen} onClose={handleClose} title="Book OPD Appointment" size="md">
+      <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+        {error && (
+          <div className="flex items-center gap-2 p-3 bg-critical-bg text-critical text-xs rounded-lg border border-critical/20">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{error}</span>
           </div>
-        ))}
-      </div>
+        )}
 
-      {/* Step content */}
-      {step === 0 && (
-        <div className="space-y-3">
-          <p className="font-medium text-text-primary mb-4">What service do you need?</p>
-          {['General Consultation', 'Follow-up', 'Antenatal Care', 'Child Immunisation', 'Specialist Referral'].map(s => (
-            <button key={s} onClick={() => { set('service', s); setStep(1) }}
-              className="w-full text-left px-4 py-3 rounded-lg border border-border-subtle hover:border-brand-default hover:bg-teal-light/30 transition-all text-sm font-medium text-text-primary">
-              {s} <ChevronRight className="w-4 h-4 float-right mt-0.5 text-text-muted" />
-            </button>
-          ))}
-        </div>
-      )}
-
-      {step === 1 && (
-        <div className="space-y-3">
-          <p className="font-medium text-text-primary mb-4">Choose a doctor</p>
-          {DOCTORS.map(d => (
-            <button key={d.id} onClick={() => { set('doctor', d); setStep(2) }}
-              className="w-full text-left px-4 py-3 rounded-xl border border-border-subtle hover:border-brand-default hover:bg-teal-light/30 transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-brand-default flex items-center justify-center text-white font-bold">{d.name.split(' ')[1][0]}</div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-text-primary">{d.name}</p>
-                  <p className="text-xs text-text-muted">{d.spec} · {d.facility}</p>
-                </div>
-                <Badge variant="success" className="text-xs">{d.next_available}</Badge>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {step === 2 && (
-        <div className="space-y-4">
-          <p className="font-medium text-text-primary">Select date & time</p>
-          <Input label="Date" id="date" type="date" value={form.date} onChange={e => set('date', e.target.value)} />
-          {form.date && (
-            <div>
-              <p className="text-sm font-medium text-text-primary mb-2">Available slots</p>
-              <div className="grid grid-cols-3 gap-2">
-                {form.doctor?.slots.map(s => (
-                  <button key={s} onClick={() => set('slot', s)}
-                    className={`py-2 rounded-lg text-sm font-medium border transition-all ${form.slot === s ? 'border-brand-default bg-brand-default text-white' : 'border-border-subtle hover:border-brand-default text-text-muted'}`}>
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          <Button className="w-full bg-brand-default text-white" disabled={!form.date || !form.slot} onClick={() => setStep(3)}>Continue</Button>
-        </div>
-      )}
-
-      {step === 3 && (
-        <div className="space-y-3">
-          <p className="font-medium text-text-primary mb-4">How would you like to consult?</p>
-          {[
-            { id: 'in-person', label: 'In-Person Visit', icon: User, desc: 'Visit the facility on the appointment day' },
-            { id: 'teleconsultation', label: 'Teleconsultation', icon: Video, desc: 'Video call from your phone or device' },
-            { id: 'assisted', label: 'Assisted Teleconsult', icon: User, desc: 'Frontline worker assists at local centre' },
-          ].map(m => (
-            <button key={m.id} onClick={() => { set('mode', m.id); setStep(4) }}
-              className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${form.mode === m.id ? 'border-brand-default bg-subtle/30' : 'border-border-subtle hover:border-brand-default'}`}>
-              <div className="flex items-center gap-3">
-                <m.icon className="w-5 h-5 text-brand-default" />
-                <div>
-                  <p className="font-medium text-sm text-text-primary">{m.label}</p>
-                  <p className="text-xs text-text-muted">{m.desc}</p>
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {step === 4 && (
+        {/* 1. Mode Toggle */}
         <div>
-          <p className="font-medium text-text-primary mb-4">Confirm your appointment</p>
-          <div className="bg-canvas rounded-xl p-5 space-y-3 text-sm border border-border-subtle mb-6">
-            <div className="flex justify-between"><span className="text-text-muted">Service</span><span className="font-medium">{form.service}</span></div>
-            <div className="flex justify-between"><span className="text-text-muted">Doctor</span><span className="font-medium">{form.doctor?.name}</span></div>
-            <div className="flex justify-between"><span className="text-text-muted">Facility</span><span className="font-medium">{form.doctor?.facility}</span></div>
-            <div className="flex justify-between"><span className="text-text-muted">Date & Time</span><span className="font-medium">{form.date} at {form.slot}</span></div>
-            <div className="flex justify-between"><span className="text-text-muted">Mode</span><span className="font-medium capitalize">{form.mode}</span></div>
+          <label className="block text-xs font-semibold text-navy mb-1.5">Consultation Type</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setConsultationType('in-person')}
+              className={cn(
+                'flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg border text-xs font-semibold transition-all',
+                consultationType === 'in-person'
+                  ? 'border-teal bg-teal/10 text-teal shadow-xs'
+                  : 'border-border bg-surface text-muted hover:border-teal/50'
+              )}
+            >
+              <User className="w-3.5 h-3.5" />
+              In-Person Visit
+            </button>
+            <button
+              type="button"
+              onClick={() => setConsultationType('teleconsultation')}
+              className={cn(
+                'flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg border text-xs font-semibold transition-all',
+                consultationType === 'teleconsultation'
+                  ? 'border-teal bg-teal/10 text-teal shadow-xs'
+                  : 'border-border bg-surface text-muted hover:border-teal/50'
+              )}
+            >
+              <Video className="w-3.5 h-3.5" />
+              Teleconsultation
+            </button>
           </div>
-          <Button className="w-full bg-brand-default text-white" size="lg" onClick={confirmBooking}>Confirm Booking</Button>
-          <Button variant="ghost" size="sm" className="w-full mt-2" onClick={() => setStep(0)}>Start Over</Button>
         </div>
-      )}
-    </div>
+
+        {/* 2. Facility Selection */}
+        <div>
+          <label className="block text-xs font-semibold text-navy mb-1.5">Healthcare Facility</label>
+          <select
+            value={selectedFacilityId}
+            onChange={(e) => setSelectedFacilityId(e.target.value)}
+            className="w-full text-xs border border-border rounded-lg px-3 py-2 bg-surface text-text focus:outline-none focus:ring-2 focus:ring-teal"
+            required
+          >
+            {facilities.map(f => (
+              <option key={f.id || f._id} value={f.id || f._id}>
+                {f.name} ({f.type}) — {f.district || 'Khandwa'}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* 3. Doctor Selection */}
+        <div>
+          <label className="block text-xs font-semibold text-navy mb-1.5">Doctor / Specialist</label>
+          <select
+            value={selectedDoctorId}
+            onChange={(e) => setSelectedDoctorId(e.target.value)}
+            className="w-full text-xs border border-border rounded-lg px-3 py-2 bg-surface text-text focus:outline-none focus:ring-2 focus:ring-teal"
+          >
+            {availableDoctors.map(d => (
+              <option key={d.id} value={d.id}>
+                {d.name} — {d.specialization}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* 4. Date & Time */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-navy mb-1.5">Date</label>
+            <input
+              type="date"
+              value={date}
+              min={new Date().toISOString().split('T')[0]}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full text-xs border border-border rounded-lg px-3 py-2 bg-surface text-text focus:outline-none focus:ring-2 focus:ring-teal"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-navy mb-1.5">Time Slot</label>
+            <select
+              value={timeSlot}
+              onChange={(e) => setTimeSlot(e.target.value)}
+              className="w-full text-xs border border-border rounded-lg px-3 py-2 bg-surface text-text focus:outline-none focus:ring-2 focus:ring-teal"
+              required
+            >
+              {TIME_SLOTS.map(slot => (
+                <option key={slot} value={slot}>{slot}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* 5. Symptoms Textarea */}
+        <div>
+          <label className="block text-xs font-semibold text-navy mb-1.5">Symptoms / Reason for Visit</label>
+          <textarea
+            rows={3}
+            value={symptoms}
+            onChange={(e) => setSymptoms(e.target.value)}
+            placeholder="E.g., Fever and mild cough for 2 days, routine blood pressure checkup..."
+            className="w-full text-xs border border-border rounded-lg p-2.5 bg-surface text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-teal resize-none"
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+          <Button type="button" variant="outline" size="sm" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button type="submit" size="sm" className="bg-teal text-white" loading={loading}>
+            Confirm Appointment
+          </Button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 
 export default function Appointments() {
-  const [bookingOpen, setBookingOpen] = useState(false)
+  const [searchParams] = useSearchParams()
+  const facilityId = searchParams.get('facilityId') || null
+  const doctorId   = searchParams.get('doctorId')   || null
 
-  const statusVariant = { confirmed: 'success', pending: 'warning', cancelled: 'critical' }
+  const [bookingOpen, setBookingOpen] = useState(!!(facilityId || doctorId))
+  const [appointments, setAppointments] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState('upcoming') // 'upcoming' | 'past'
+  const [cancellingId, setCancellingId] = useState(null)
+
+  // Load appointments
+  const loadAppointments = async () => {
+    setLoading(true)
+    try {
+      const list = await appointmentService.getAll()
+      setAppointments(list || [])
+    } catch (err) {
+      console.error('Error fetching appointments:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadAppointments()
+  }, [])
+
+  // Auto-open modal if query params change
+  useEffect(() => {
+    if (facilityId || doctorId) {
+      setBookingOpen(true)
+    }
+  }, [facilityId, doctorId])
+
+  // Categorize upcoming vs past appointments
+  const todayStr = new Date().toISOString().split('T')[0]
+
+  const upcomingAppointments = useMemo(() => {
+    return appointments.filter(a => {
+      if (a.status === 'cancelled') return false
+      return a.date >= todayStr && a.status !== 'completed'
+    })
+  }, [appointments, todayStr])
+
+  const pastAppointments = useMemo(() => {
+    return appointments.filter(a => {
+      if (a.status === 'cancelled' || a.status === 'completed') return true
+      return a.date < todayStr
+    })
+  }, [appointments, todayStr])
+
+  const handleCancel = async (id) => {
+    if (!window.confirm('Are you sure you want to cancel this appointment?')) return
+
+    setCancellingId(id)
+    try {
+      await appointmentService.cancel(id)
+      setAppointments(prev => prev.map(a => (a.id === id || a._id === id) ? { ...a, status: 'cancelled' } : a))
+    } catch (err) {
+      alert('Failed to cancel appointment: ' + err.message)
+    } finally {
+      setCancellingId(null)
+    }
+  }
+
+  const displayedList = tab === 'upcoming' ? upcomingAppointments : pastAppointments
+
+  const statusVariant = {
+    confirmed: 'success',
+    pending: 'warning',
+    cancelled: 'critical',
+    completed: 'neutral'
+  }
 
   return (
     <AppLayout role="patient">
       <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
-        <div className="flex items-center justify-between">
+
+        {/* Header */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-text-primary">Appointments</h1>
-            <p className="text-text-muted text-sm">Manage and book healthcare appointments</p>
+            <h1 className="text-2xl font-bold text-navy flex items-center gap-2">
+              <Calendar className="w-6 h-6 text-teal" />
+              Appointments
+            </h1>
+            <p className="text-muted text-xs mt-0.5">Manage OPD consultations, checkups, and teleconsultations</p>
           </div>
-          <Button className="bg-brand-default text-white" onClick={() => setBookingOpen(true)}>
+          <Button className="bg-teal text-white" onClick={() => setBookingOpen(true)}>
             <Calendar className="w-4 h-4" /> Book Appointment
           </Button>
         </div>
 
-        <div className="space-y-4">
-          {MOCK_APPOINTMENTS.map(appt => (
-            <Card key={appt.id} className="hover:shadow-md transition-shadow">
-              <CardBody>
-                <div className="flex items-start gap-4">
-                  <div className="flex flex-col items-center bg-subtle rounded-xl p-3 w-16 flex-shrink-0">
-                    <span className="text-xs font-bold text-brand-default">{new Date(appt.date).toLocaleString('en', { month: 'short' }).toUpperCase()}</span>
-                    <span className="text-2xl font-bold text-text-primary">{new Date(appt.date).getDate()}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <h3 className="font-semibold text-text-primary">{appt.doctor}</h3>
-                      <Badge variant={statusVariant[appt.status]}>{appt.status}</Badge>
-                    </div>
-                    <p className="text-sm text-text-muted">{appt.type}</p>
-                    <div className="flex items-center gap-4 mt-3 text-xs text-text-muted flex-wrap">
-                      <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{appt.time}</span>
-                      <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{appt.facility}</span>
-                      <span className="flex items-center gap-1"><Video className="w-3.5 h-3.5" className={appt.mode === 'teleconsultation' ? 'text-brand-default' : ''} />{appt.mode}</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-3">
-                      <span className="text-xs bg-navy text-surface px-2 py-0.5 rounded-full font-mono font-bold">Queue: {appt.queue_no}</span>
-                      {appt.status === 'confirmed' && (
-                        <Button size="sm" className="bg-brand-default text-white">Join Consultation</Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
-          ))}
+        {/* Segmented Tab Switcher: Upcoming vs Past */}
+        <div className="flex items-center gap-2 border-b border-border pb-1">
+          <button
+            onClick={() => setTab('upcoming')}
+            className={cn(
+              'pb-2 px-3 text-sm font-semibold border-b-2 transition-all',
+              tab === 'upcoming'
+                ? 'border-teal text-teal'
+                : 'border-transparent text-muted hover:text-navy'
+            )}
+          >
+            Upcoming Appointments
+            <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-teal/10 text-teal">
+              {upcomingAppointments.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setTab('past')}
+            className={cn(
+              'pb-2 px-3 text-sm font-semibold border-b-2 transition-all',
+              tab === 'past'
+                ? 'border-teal text-teal'
+                : 'border-transparent text-muted hover:text-navy'
+            )}
+          >
+            Past & Cancelled
+            <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-bg text-muted">
+              {pastAppointments.length}
+            </span>
+          </button>
         </div>
+
+        {/* Appointment list */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center h-48 gap-3 text-muted">
+            <Loader2 className="w-8 h-8 animate-spin text-teal" />
+            <p className="text-sm">Loading appointments…</p>
+          </div>
+        ) : displayedList.length === 0 ? (
+          <Card>
+            <CardBody className="py-12 text-center">
+              <Calendar className="w-12 h-12 text-border mx-auto mb-3" />
+              <h3 className="font-semibold text-navy text-sm">No {tab} appointments found</h3>
+              <p className="text-muted text-xs mt-1 mb-4">
+                {tab === 'upcoming'
+                  ? "You don't have any upcoming OPD visits scheduled."
+                  : 'No past appointment records found.'}
+              </p>
+              {tab === 'upcoming' && (
+                <Button size="sm" className="bg-teal text-white" onClick={() => setBookingOpen(true)}>
+                  Book New Appointment
+                </Button>
+              )}
+            </CardBody>
+          </Card>
+        ) : (
+          <div className="space-y-3.5">
+            {displayedList.map(appt => {
+              const apptId = appt.id || appt._id
+              const isTele = (appt.mode || appt.consultationType) === 'teleconsultation'
+
+              return (
+                <Card key={apptId} className="hover:shadow-md transition-shadow">
+                  <CardBody>
+                    <div className="flex items-start gap-4">
+                      {/* Date Badge */}
+                      <div className="flex flex-col items-center bg-teal/10 border border-teal/20 rounded-xl p-2.5 w-16 flex-shrink-0 text-center">
+                        <span className="text-[10px] font-bold text-teal uppercase">
+                          {new Date(appt.date).toLocaleString('en', { month: 'short' })}
+                        </span>
+                        <span className="text-2xl font-bold text-navy leading-none mt-0.5">
+                          {new Date(appt.date).getDate()}
+                        </span>
+                        <span className="text-[10px] text-muted mt-1">
+                          {new Date(appt.date).getFullYear()}
+                        </span>
+                      </div>
+
+                      {/* Info column */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                          <h3 className="font-semibold text-navy text-sm">{appt.doctor || 'Attending Doctor'}</h3>
+                          <Badge variant={statusVariant[appt.status] || 'default'} className="capitalize text-xs">
+                            {appt.status}
+                          </Badge>
+                        </div>
+
+                        <p className="text-xs text-muted mb-2">{appt.type || 'OPD Consultation'}</p>
+
+                        <div className="flex items-center gap-4 text-xs text-muted flex-wrap">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-teal" />
+                            {appt.time || appt.timeSlot}
+                          </span>
+                          <span className="flex items-center gap-1 truncate">
+                            <MapPin className="w-3.5 h-3.5 text-teal" />
+                            {appt.facility}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            {isTele ? (
+                              <Video className="w-3.5 h-3.5 text-teal" />
+                            ) : (
+                              <User className="w-3.5 h-3.5 text-navy" />
+                            )}
+                            <span className="capitalize">{appt.consultationType || appt.mode}</span>
+                          </span>
+                        </div>
+
+                        {/* Symptoms snippet */}
+                        {appt.symptoms && (
+                          <div className="mt-2 text-xs bg-bg rounded-lg p-2 text-text/80 flex items-start gap-1.5 border border-border/50">
+                            <FileText className="w-3.5 h-3.5 text-muted flex-shrink-0 mt-0.5" />
+                            <span className="line-clamp-2">Reason: {appt.symptoms}</span>
+                          </div>
+                        )}
+
+                        {/* Action buttons & queue */}
+                        <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t border-border flex-wrap">
+                          <span className="text-xs bg-navy text-white px-2.5 py-0.5 rounded-full font-mono font-semibold">
+                            Queue: {appt.queueNo || appt.queue_no || 'A-028'}
+                          </span>
+
+                          <div className="flex items-center gap-2 ml-auto">
+                            {isTele && appt.status === 'confirmed' && (
+                              <Button size="sm" className="bg-teal text-white text-xs h-7 px-3">
+                                <Video className="w-3 h-3" /> Join Teleconsult
+                              </Button>
+                            )}
+                            {appt.status !== 'cancelled' && appt.status !== 'completed' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-critical border-critical/30 hover:bg-critical/10 text-xs h-7 px-2.5"
+                                loading={cancellingId === apptId}
+                                onClick={() => handleCancel(apptId)}
+                              >
+                                <Ban className="w-3 h-3" /> Cancel
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardBody>
+                </Card>
+              )
+            })}
+          </div>
+        )}
       </div>
 
-      <Modal open={bookingOpen} onClose={() => setBookingOpen(false)} title="Book Appointment" size="md">
-        <BookingWizard onClose={() => setBookingOpen(false)} />
-      </Modal>
+      {/* Booking Modal */}
+      <BookingModal
+        isOpen={bookingOpen}
+        onClose={() => setBookingOpen(false)}
+        initialFacilityId={facilityId}
+        initialDoctorId={doctorId}
+        onBooked={(newAppt) => {
+          setAppointments(prev => [newAppt, ...prev])
+        }}
+      />
     </AppLayout>
   )
 }

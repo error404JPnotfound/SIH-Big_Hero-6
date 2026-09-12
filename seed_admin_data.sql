@@ -5,8 +5,8 @@
 -- values for the Admin Dashboard dynamically.
 -- ================================================================
 
--- 1. Create the Admin Dashboard View to output the specific target stats
-CREATE OR REPLACE VIEW admin_dashboard_view AS
+DROP VIEW IF EXISTS admin_dashboard_view;
+CREATE VIEW admin_dashboard_view AS
 SELECT
   COALESCE(NULLIF((SELECT COUNT(*) FROM patients), 0), 12847)::int AS total_patients,
   COALESCE(NULLIF((SELECT COUNT(*) FROM doctors WHERE is_available = true), 0), 47)::int AS active_doctors,
@@ -56,29 +56,58 @@ SELECT 'Patient Satisfaction', 4.2, '/5', 4.5, 'warning', 0.1, '0.3 below target
 SELECT 'Facility Utilization', 72.0, '%', 80.0, 'warning', 6.0, 'District Hospital at 85%', '[60,62,65,68,70,72,72]'::jsonb;
 
 
--- 6. Doctors View
-CREATE OR REPLACE VIEW admin_doctors_view AS
-SELECT 'Dr. Sharma' as name, 'Cardiology' as specialization, 'District Hospital Khandwa' as facility, 'MCI-1234' as reg_number, 'Active' as status UNION ALL
-SELECT 'Dr. Gupta', 'General Medicine', 'PHC Khandwa', 'MCI-5678', 'Active' UNION ALL
-SELECT 'Dr. Verma', 'Pediatrics', 'CHC Sanawad', 'MCI-9012', 'On Leave' UNION ALL
-SELECT 'Dr. Patel', 'Orthopedics', 'District Hospital Khandwa', 'MCI-3456', 'Active';
+-- 6. Doctors View (Reads from actual doctors table)
+DROP VIEW IF EXISTS admin_doctors_view;
+CREATE VIEW admin_doctors_view AS
+SELECT 
+  COALESCE(p.full_name, 'Doctor ' || d.reg_number) as name,
+  d.specialization,
+  f.name as facility,
+  d.reg_number,
+  CASE WHEN d.is_available THEN 'Active' ELSE 'On Leave' END as status
+FROM doctors d
+LEFT JOIN facilities f ON f.id = d.facility_id
+LEFT JOIN profiles p ON p.id = d.profile_id;
 
--- 7. Patients View
-CREATE OR REPLACE VIEW admin_patients_view AS
-SELECT 'PT-001' as patient_code, 'Rajesh Kumar' as name, 45 as age, 'Male' as gender, true as is_high_risk, 'Hypertension' as condition UNION ALL
-SELECT 'PT-002', 'Sita Devi', 32, 'Female', false, 'None' UNION ALL
-SELECT 'PT-003', 'Amit Singh', 58, 'Male', true, 'Diabetes' UNION ALL
-SELECT 'PT-004', 'Pooja Verma', 25, 'Female', false, 'None';
+-- 7. Patients View (Reads from actual patients table)
+DROP VIEW IF EXISTS admin_patients_view;
+CREATE VIEW admin_patients_view AS
+SELECT 
+  pt.patient_code,
+  COALESCE(p.full_name, 'Patient ' || pt.patient_code) as name,
+  EXTRACT(YEAR FROM age(pt.dob))::int as age,
+  INITCAP(pt.gender) as gender,
+  pt.is_high_risk,
+  COALESCE(NULLIF(array_to_string(pt.allergies, ', '), ''), 'None') as condition
+FROM patients pt
+LEFT JOIN profiles p ON p.id = pt.profile_id;
 
--- 8. Referrals View
-CREATE OR REPLACE VIEW admin_referrals_view AS
-SELECT 'PT-001' as patient_code, 'Rajesh Kumar' as patient_name, 'PHC Khandwa' as from_facility, 'District Hospital Khandwa' as to_facility, 'Cardiology' as department, 'pending' as status, 'urgent' as urgency UNION ALL
-SELECT 'PT-005', 'Ramesh Yadav', 'Sub-Centre Rampur', 'PHC Khandwa', 'General Medicine', 'completed', 'routine' UNION ALL
-SELECT 'PT-008', 'Kavita Sharma', 'CHC Sanawad', 'District Hospital Khandwa', 'Neurology', 'pending', 'urgent';
+-- 8. Referrals View (Reads from actual referrals table)
+DROP VIEW IF EXISTS admin_referrals_view;
+CREATE VIEW admin_referrals_view AS
+SELECT 
+  pt.patient_code,
+  COALESCE(p.full_name, 'Patient ' || pt.patient_code) as patient_name,
+  f1.name as from_facility,
+  f2.name as to_facility,
+  r.department,
+  r.status,
+  r.urgency
+FROM referrals r
+LEFT JOIN patients pt ON pt.id = r.patient_id
+LEFT JOIN profiles p ON p.id = pt.profile_id
+LEFT JOIN facilities f1 ON f1.id = r.from_facility
+LEFT JOIN facilities f2 ON f2.id = r.to_facility;
 
--- 9. Medicine Stock View
-CREATE OR REPLACE VIEW admin_medicines_view AS
-SELECT 'Paracetamol 500mg' as name, 'PHC Khandwa' as facility, 5000 as quantity, 'tablets' as unit, true as is_available UNION ALL
-SELECT 'Amoxicillin 250mg', 'District Hospital Khandwa', 12000, 'capsules', true UNION ALL
-SELECT 'Insulin Glargine', 'CHC Sanawad', 0, 'vials', false UNION ALL
-SELECT 'Metformin 500mg', 'Sub-Centre Rampur', 50, 'tablets', true;
+-- 9. Medicine Stock View (Reads from actual medicine_stock table)
+DROP VIEW IF EXISTS admin_medicines_view;
+CREATE VIEW admin_medicines_view AS
+SELECT 
+  m.name,
+  f.name as facility,
+  ms.quantity,
+  ms.unit,
+  ms.is_available
+FROM medicine_stock ms
+LEFT JOIN medicines m ON m.id = ms.medicine_id
+LEFT JOIN facilities f ON f.id = ms.facility_id;
