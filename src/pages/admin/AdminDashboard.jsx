@@ -19,8 +19,10 @@ function FacilityRow({ fac }) {
     limited_capacity: { variant: 'warning', label: 'Limited' },
     critical: { variant: 'critical', label: 'Critical' },
   }
-  const meta = statusMeta[fac.status] || { variant: 'outline', label: fac.status }
-  const load = Math.round((fac.patients_today / fac.capacity) * 100)
+  const meta = statusMeta[fac.status] || { variant: 'outline', label: fac.status || 'Unknown' }
+  const patientsToday = fac.patients_today || 0
+  const capacity = fac.capacity || 100
+  const load = Math.round((patientsToday / capacity) * 100)
   const loadColor = load > 85 ? 'critical' : load > 65 ? 'warning' : 'success'
 
   return (
@@ -38,13 +40,13 @@ function FacilityRow({ fac }) {
       <div className="hidden md:block w-32">
         <div className="flex justify-between text-xs mb-1">
           <span className="text-text-muted">Load</span>
-          <span className="font-medium">{fac.patients_today}/{fac.capacity}</span>
+          <span className="font-medium">{patientsToday}/{capacity}</span>
         </div>
-        <ProgressBar value={fac.patients_today} max={fac.capacity} color={loadColor} showLabel={false} />
+        <ProgressBar value={patientsToday} max={capacity} color={loadColor} showLabel={false} />
       </div>
       <div className="text-right flex-shrink-0">
-        <p className="text-sm font-semibold text-text-primary">{fac.doctors}</p>
-        <p className="text-xs text-text-muted">Doctors</p>
+        <p className="text-sm font-semibold text-text-primary">{fac.doctors || 0}</p>
+        <p className="text-xs text-text-muted">Doctors</p
       </div>
     </div>
   )
@@ -120,9 +122,9 @@ export default function AdminDashboard() {
     async function loadData() {
       try {
         const [dbStats, dbFacilities, dbHighRisk, dbQuality, dbWeekly] = await Promise.all([
-          getAdminDashboard(),
-          getFacilities(),
-          getHighRiskFollowUps(),
+          getAdminDashboard().catch(e => { console.error('Stats error:', e); return null }),
+          getFacilities().catch(() => []),
+          getHighRiskFollowUps().catch(() => []),
           getQualityIndicators().catch(() => null),
           getWeeklyConsultations().catch(() => null)
         ])

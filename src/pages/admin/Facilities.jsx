@@ -15,7 +15,9 @@ const STATUS_META = {
 
 function FacilityCard({ fac }) {
   const meta = STATUS_META[fac.status]
-  const load = Math.round((fac.patients_today / fac.capacity) * 100)
+  const patientsToday = fac.patients_today || 0
+  const capacity = fac.capacity || 100
+  const load = Math.round((patientsToday / capacity) * 100)
   const loadColor = load > 85 ? 'critical' : load > 65 ? 'warning' : 'success'
 
   return (
@@ -40,22 +42,23 @@ function FacilityCard({ fac }) {
       <div className="grid grid-cols-3 gap-3 text-center mb-4">
         <div className="bg-canvas rounded-lg py-2">
           <div className="flex items-center justify-center gap-1 mb-1"><Stethoscope className="w-3 h-3 text-brand-default" /></div>
-          <p className="text-base font-bold text-text-primary">{fac.doctors}</p>
+          <p className="text-base font-bold text-text-primary">{fac.doctors || 0}</p>
           <p className="text-xs text-text-muted">Doctors</p>
         </div>
         <div className="bg-canvas rounded-lg py-2">
           <div className="flex items-center justify-center gap-1 mb-1"><Users className="w-3 h-3 text-brand-secondary" /></div>
-          <p className="text-base font-bold text-text-primary">{fac.patients_today}</p>
+          <p className="text-base font-bold text-text-primary">{patientsToday}</p>
           <p className="text-xs text-text-muted">Today</p>
         </div>
         <div className="bg-canvas rounded-lg py-2">
           <div className="flex items-center justify-center gap-1 mb-1"><Bed className="w-3 h-3 text-status-success" /></div>
-          <p className="text-base font-bold text-text-primary">{fac.beds}</p>
+          <p className="text-base font-bold text-text-primary">{fac.beds || 0}</p>
           <p className="text-xs text-text-muted">Beds</p>
+        </div>
         </div>
       </div>
 
-      <ProgressBar value={fac.patients_today} max={fac.capacity} color={loadColor} label="Patient Load" />
+      <ProgressBar value={patientsToday} max={capacity} color={loadColor} label="Patient Load" />
 
       <div className="flex gap-2 mt-4">
         <Button variant="outline" size="sm" className="flex-1">Details</Button>
@@ -100,7 +103,7 @@ export default function Facilities() {
             { label: 'Total Facilities', value: facilities.length, color: 'text-text-primary' },
             { label: 'Operational', value: facilities.filter(f => f.status === 'operational').length, color: 'text-status-success' },
             { label: 'Busy/Limited', value: facilities.filter(f => ['busy','limited_capacity'].includes(f.status)).length, color: 'text-status-warning' },
-            { label: 'Total Doctors', value: facilities.reduce((s, f) => s + f.doctors, 0), color: 'text-brand-default' },
+            { label: 'Total Doctors', value: facilities.reduce((s, f) => s + (f.doctors || 0), 0), color: 'text-brand-default' },
           ].map(s => (
             <div key={s.label} className="bg-surface-elevated rounded-xl border border-border-subtle p-4 text-center">
               <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
