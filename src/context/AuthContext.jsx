@@ -78,6 +78,8 @@ export function AuthProvider({ children }) {
 
   // ── Sign in with Email & Password ─────────────────────────────
   const signInWithEmail = async (email, password) => {
+    sessionStorage.removeItem('demo_user')
+    setDemoMode(false)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
     return data
@@ -85,12 +87,16 @@ export function AuthProvider({ children }) {
 
   // ── Sign in with Phone (send OTP) ─────────────────────────────
   const signInWithPhone = async (phone) => {
+    sessionStorage.removeItem('demo_user')
+    setDemoMode(false)
     const { error } = await supabase.auth.signInWithOtp({ phone })
     if (error) throw error
   }
 
   // ── Verify OTP ────────────────────────────────────────────────
   const verifyOtp = async (phone, token) => {
+    sessionStorage.removeItem('demo_user')
+    setDemoMode(false)
     const { data, error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' })
     if (error) throw error
     return data
