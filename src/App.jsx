@@ -14,6 +14,8 @@ import Medicines from './pages/patient/Medicines'
 import Referrals from './pages/patient/Referrals'
 import Diagnostics from './pages/patient/Diagnostics'
 import Records from './pages/patient/Records'
+import FacilityFinder from './pages/patient/FacilityFinder'
+import FacilityDetails from './pages/patient/FacilityDetails'
 
 // Doctor portal
 import DoctorDashboard from './pages/doctor/DoctorDashboard'
@@ -42,6 +44,8 @@ export default function App() {
 
           {/* Patient */}
           <Route path="/patient" element={<PatientDashboard />} />
+          <Route path="/patient/facilities" element={<FacilityFinder />} />
+          <Route path="/patient/facilities/:id" element={<FacilityDetails />} />
           <Route path="/patient/appointments" element={<Appointments />} />
           <Route path="/patient/queue" element={<Queue />} />
           <Route path="/patient/medicines" element={<Medicines />} />

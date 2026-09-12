@@ -7,18 +7,24 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "node backend/server.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
     "@tailwindcss/vite": "^4.3.3",
+    "axios": "^1.20.0",
     "clsx": "^2.1.1",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
     "framer-motion": "^13.2.0",
     "i18next": "^26.4.2",
+    "leaflet": "^1.9.4",
     "lucide-react": "^1.45.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-i18next": "^17.0.13",
+    "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.18.3",
     "tailwind-merge": "^3.6.0"
   },

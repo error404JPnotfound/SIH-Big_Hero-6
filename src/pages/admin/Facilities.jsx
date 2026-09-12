@@ -55,7 +55,6 @@ function FacilityCard({ fac }) {
           <p className="text-base font-bold text-text-primary">{fac.beds || 0}</p>
           <p className="text-xs text-text-muted">Beds</p>
         </div>
-        </div>
       </div>
 
       <ProgressBar value={patientsToday} max={capacity} color={loadColor} label="Patient Load" />

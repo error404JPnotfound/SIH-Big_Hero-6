@@ -46,7 +46,7 @@ function FacilityRow({ fac }) {
       </div>
       <div className="text-right flex-shrink-0">
         <p className="text-sm font-semibold text-text-primary">{fac.doctors || 0}</p>
-        <p className="text-xs text-text-muted">Doctors</p
+        <p className="text-xs text-text-muted">Doctors</p>
       </div>
     </div>
   )

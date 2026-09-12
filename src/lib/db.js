@@ -516,6 +516,18 @@ export async function getFacilities() {
   return data
 }
 
+/** Get a single facility by ID */
+export async function getFacilityById(id) {
+  const { data, error } = await supabase
+    .from('facilities')
+    .select('*')
+    .eq('id', id)
+    .single()
+  if (error) throw error
+  return data
+}
+
+
 /** Get doctors at a facility */
 export async function getDoctorsByFacility(facilityId) {
   const { data, error } = await supabase
