@@ -1131,17 +1131,19 @@ export const facilityService = {
 
           const formattedDocs =
             (docs || []).map(
-              d => ({
+              d => {
+                const fullName = d.profiles?.full_name
+                const displayName = fullName
+                  ? (fullName.toLowerCase().startsWith('dr') ? fullName : `Dr. ${fullName}`)
+                  : `Dr. (${d.specialization || 'Physician'})`
+                return {
 
                 id: d.id,
 
-                name:
-                  d.profiles
-                    ?.full_name ||
-                  'Dr. Unknown',
+                name: displayName,
 
                 specialization:
-                  d.specialization,
+                  d.specialization || 'General Physician',
 
                 isAvailable:
                   d.is_available,
@@ -1149,7 +1151,8 @@ export const facilityService = {
                 phone:
                   d.profiles
                     ?.phone,
-              })
+                }
+              }
             );
 
 
