@@ -408,7 +408,7 @@ export default function DoctorDashboard() {
           <KPICard title="Completed" value={loading ? '—' : stats.completed} icon={CheckCircle2} color="success" />
           <KPICard title="High Risk" value={loading ? '—' : stats.highRisk} icon={AlertCircle} color="critical" />
           <KPICard title="Emergency" value={loading ? '—' : stats.emergency} icon={AlertCircle} color="teal" />
-          <KPICard title="Follow-ups" value={loading ? '—' : stats.followUps} icon={Stethoscope} color="blue" />
+          {/* <KPICard title="Follow-ups" value={loading ? '—' : stats.followUps} icon={Stethoscope} color="blue" /> */}
         </div>
 
         {/* Active consultation */}
