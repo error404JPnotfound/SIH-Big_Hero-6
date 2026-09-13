@@ -12,9 +12,10 @@ import {
   updateQueueStatus,
   updateDoctorAvailability,
 } from '../../lib/db'
+import { appointmentService } from '../../services/api'
 import {
   Users, CheckCircle2, AlertCircle, Clock, Stethoscope, FileText,
-  ChevronRight, Play, Eye, Loader2
+  ChevronRight, Play, Eye, Loader2, Calendar
 } from 'lucide-react'
 
 const PRIORITY_META = {
@@ -106,6 +107,8 @@ export default function DoctorDashboard() {
 
   const [doctor, setDoctor] = useState(null)
   const [appointments, setAppointments] = useState([])
+  const [pendingAppointments, setPendingAppointments] = useState([])
+  const [approvingApptId, setApprovingApptId] = useState(null)
   const [queue, setQueue] = useState([])
   const [followUps, setFollowUps] = useState([])
   const [pendingReferrals, setPendingReferrals] = useState(0)
@@ -118,20 +121,30 @@ export default function DoctorDashboard() {
   const isDoctorSession = user?.role === 'doctor' && !demoMode && user?.id && !String(user.id).endsWith('-demo')
 
   const loadDashboard = useCallback(async () => {
-    if (!isDoctorSession) {
-      setDoctor(null)
-      setAppointments([])
-      setQueue([])
-      setFollowUps([])
-      setPendingReferrals(0)
-      setEmergencyCount(0)
-      setLoading(false)
-      return
-    }
-
     setError('')
 
     try {
+      // 1. Fetch pending appointments from unified service
+      const allAppts = await appointmentService.getAll().catch(() => [])
+      const pendingList = allAppts.filter(a => a.status === 'pending')
+      setPendingAppointments(pendingList)
+
+      if (!isDoctorSession) {
+        setDoctor({
+          id: 'd-demo',
+          specialization: 'General Physician',
+          is_available: true,
+          facilities: { name: 'PHC Khandwa', type: 'PHC' }
+        })
+        setAppointments(allAppts.filter(a => a.status !== 'cancelled'))
+        setQueue([])
+        setFollowUps([])
+        setPendingReferrals(0)
+        setEmergencyCount(0)
+        setLoading(false)
+        return
+      }
+
       const { data: doctorData, error: doctorError } = await supabase
         .from('doctors')
         .select(`
@@ -327,6 +340,33 @@ export default function DoctorDashboard() {
     else navigate('/doctor/patients')
   }
 
+  async function handleApproveAppointment(apptId) {
+    setApprovingApptId(apptId)
+    setError('')
+    try {
+      await appointmentService.approve(apptId)
+      setPendingAppointments(prev => prev.filter(a => (a.id || a._id) !== apptId))
+      await loadDashboard()
+    } catch (err) {
+      console.error('Failed to approve appointment:', err)
+      setError(err?.message || 'Failed to approve appointment.')
+    } finally {
+      setApprovingApptId(null)
+    }
+  }
+
+  async function handleDeclineAppointment(apptId) {
+    if (!window.confirm('Are you sure you want to decline this appointment request?')) return
+    try {
+      await appointmentService.cancel(apptId)
+      setPendingAppointments(prev => prev.filter(a => (a.id || a._id) !== apptId))
+      await loadDashboard()
+    } catch (err) {
+      console.error('Failed to decline appointment:', err)
+      setError(err?.message || 'Failed to decline appointment.')
+    }
+  }
+
   const facilityName = doctor?.facilities?.name || 'Assigned Facility'
 
   return (
@@ -377,6 +417,108 @@ export default function DoctorDashboard() {
             {activePatient.age} yrs — {activePatient.reason || 'General consultation'} — Queue: {activePatient.queue_no}
           </Alert>
         )}
+
+        {/* Pending Appointment Requests */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-text-primary">Pending Appointment Requests</h2>
+              {pendingAppointments.length > 0 && (
+                <Badge variant="warning" className="text-xs font-bold px-2 py-0.5">
+                  {pendingAppointments.length} Awaiting Approval
+                </Badge>
+              )}
+            </div>
+            <span className="text-xs text-text-muted hidden sm:inline">
+              Appointments become confirmed only when approved by the doctor
+            </span>
+          </div>
+
+          {pendingAppointments.length === 0 ? (
+            <div className="bg-surface-elevated rounded-xl border border-border-subtle p-5 text-center text-sm text-text-muted">
+              <CheckCircle2 className="w-6 h-6 text-status-success mx-auto mb-1.5 opacity-80" />
+              <p className="font-medium text-text-primary text-xs">All appointment requests are reviewed</p>
+              <p className="text-[11px] text-text-muted mt-0.5">Any newly booked patient appointment with status 'Pending' will appear here for your confirmation.</p>
+            </div>
+          ) : (
+            <div className="bg-surface-elevated rounded-xl border border-border-subtle overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-canvas border-b border-border-subtle text-text-muted uppercase tracking-wider text-[11px]">
+                      <th className="px-4 py-2.5 text-left">Queue / Mode</th>
+                      <th className="px-4 py-2.5 text-left">Patient</th>
+                      <th className="px-4 py-2.5 text-left">Requested Schedule</th>
+                      <th className="px-4 py-2.5 text-left">Clinical Reason / Notes</th>
+                      <th className="px-4 py-2.5 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-subtle">
+                    {pendingAppointments.map(appt => {
+                      const apptId = appt.id || appt._id
+                      const patientName = appt.patients?.profiles?.full_name || appt.patientName || appt.patient || 'Patient'
+                      const dateDisplay = appt.date || (appt.scheduled_at ? new Date(appt.scheduled_at).toISOString().split('T')[0] : 'Upcoming')
+                      const timeDisplay = appt.time || appt.timeSlot || (appt.scheduled_at ? new Date(appt.scheduled_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '10:00')
+
+                      return (
+                        <tr key={apptId} className="hover:bg-bg transition-colors">
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-mono font-bold text-brand-default">{appt.queueNo || appt.queue_no || 'A-01'}</span>
+                              <span className="text-[10px] text-text-muted capitalize">{appt.consultationType || appt.mode || 'In-Person'}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-semibold text-text-primary">{patientName}</p>
+                            <p className="text-[11px] text-text-muted">{appt.type || 'OPD Consultation'}</p>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="font-medium text-text-primary flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5 text-brand-default" /> {dateDisplay}
+                            </span>
+                            <span className="text-text-muted text-[11px] flex items-center gap-1">
+                              <Clock className="w-3 h-3" /> {timeDisplay}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 max-w-xs">
+                            <p className="truncate text-text-secondary" title={appt.symptoms || appt.reason}>
+                              {appt.symptoms || appt.reason || 'General Health Review'}
+                            </p>
+                            {appt.referralId && (
+                              <span className="inline-block mt-0.5 text-[10px] text-amber-700 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                                Referral Token #{appt.referralId}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                size="sm"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-7 px-3 flex items-center gap-1 shadow-xs cursor-pointer"
+                                loading={approvingApptId === apptId}
+                                onClick={() => handleApproveAppointment(apptId)}
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-critical border-critical/30 hover:bg-critical/10 text-xs h-7 px-2"
+                                onClick={() => handleDeclineAppointment(apptId)}
+                              >
+                                Decline
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Today's Queue */}
         <div>
