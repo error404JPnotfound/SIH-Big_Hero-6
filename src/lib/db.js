@@ -753,8 +753,8 @@ export async function getDoctorsByFacility(facilityId) {
   const { data, error } = await supabase
     .from('doctors')
     .select(`
-      id, specialization, is_available, account_status,
-      profiles:profile_id (full_name, phone)
+      id, specialization, is_available, account_status, profile_id,
+      profiles:profile_id (id, full_name, phone, email)
     `)
     .eq('facility_id', facilityId)
     .eq('is_available', true)
@@ -763,7 +763,26 @@ export async function getDoctorsByFacility(facilityId) {
     console.warn('[db] getDoctorsByFacility warning:', error.message)
     return []
   }
-  return data || []
+  // If profiles join returned null (RLS), fall back to a separate profiles query
+  const rows = data || []
+  const needsNameFetch = rows.some(d => !d.profiles?.full_name)
+  if (needsNameFetch) {
+    const profileIds = rows.map(d => d.profile_id).filter(Boolean)
+    if (profileIds.length > 0) {
+      const { data: profileRows } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, email')
+        .in('id', profileIds)
+      if (profileRows?.length) {
+        const profileMap = Object.fromEntries(profileRows.map(p => [p.id, p]))
+        return rows.map(d => ({
+          ...d,
+          profiles: profileMap[d.profile_id] || d.profiles || null
+        }))
+      }
+    }
+  }
+  return rows
 }
 
 /** Get all available active doctors (fallback for facilities without specific doctors) */

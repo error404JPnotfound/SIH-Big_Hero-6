@@ -351,13 +351,19 @@ export const facilityService = {
             type: DB_TO_DISPLAY_TYPE[fac.type] || fac.type,
             emergencyAvailable: fac.emergencyAvailable ?? fac.emergency_available ?? true,
           };
-          const formattedDocs = (docs || []).map(d => ({
-            id: d.id,
-            name: d.profiles?.full_name || 'Dr. Unknown',
-            specialization: d.specialization,
-            isAvailable: d.is_available,
-            phone: d.profiles?.phone,
-          }));
+          const formattedDocs = (docs || []).map(d => {
+            const fullName = d.profiles?.full_name
+            const displayName = fullName
+              ? (fullName.toLowerCase().startsWith('dr') ? fullName : `Dr. ${fullName}`)
+              : `Dr. (${d.specialization || 'Physician'})`
+            return {
+              id: d.id,
+              name: displayName,
+              specialization: d.specialization || 'General Physician',
+              isAvailable: d.is_available,
+              phone: d.profiles?.phone,
+            }
+          });
           return { facility: formattedFac, doctors: formattedDocs };
         }
       } catch {
