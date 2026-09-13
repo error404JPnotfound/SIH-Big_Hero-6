@@ -21,8 +21,8 @@ import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { appointmentService, facilityService, liveOsmCache } from '../../services/api'
 
-import { MOCK_FACILITIES, MOCK_DOCTORS_BY_FACILITY, MOCK_REFERRALS, MOCK_PATIENT } from '../../lib/mockData'
-import { getMyReferrals } from '../../lib/db'
+import { MOCK_REFERRALS, MOCK_PATIENT } from '../../lib/mockData'
+import { getMyReferrals, getAvailableDoctors } from '../../lib/db'
 import {
   Calendar, Clock, MapPin, Video, User, CheckCircle2,
   AlertCircle, X, Loader2, Ban, FileText,
@@ -345,6 +345,9 @@ function BookingModal({
   onBooked
 }) {
   const [facilities, setFacilities] = useState([])
+  const [availableDoctors, setAvailableDoctors] = useState([])
+  const [loadingFacilities, setLoadingFacilities] = useState(false)
+  const [loadingDoctors, setLoadingDoctors] = useState(false)
   const [selectedFacilityId, setSelectedFacilityId] = useState(initialFacilityId || '')
   const [selectedDoctorId, setSelectedDoctorId] = useState(initialDoctorId || '')
   const [selectedReferralId, setSelectedReferralId] = useState(initialReferralId || '')
@@ -356,27 +359,49 @@ function BookingModal({
   const [error, setError] = useState('')
   const [confirmedAppt, setConfirmedAppt] = useState(null)
 
-  // Load facilities
+  // Load real facilities from Supabase/service.
+  // Keep an explicitly selected OSM facility in the list when the user came
+  // from the nearby-facilities page.
   useEffect(() => {
-    let list = [...MOCK_FACILITIES]
-    if (initialFacilityId && !list.some(f => f.id === initialFacilityId || f._id === initialFacilityId)) {
-      if (liveOsmCache.has(initialFacilityId)) {
-        list.unshift(liveOsmCache.get(initialFacilityId))
-      } else {
-        list.unshift({
-          id: initialFacilityId,
-          _id: initialFacilityId,
-          name: 'Selected Healthcare Centre',
-          type: 'Clinic',
-          district: 'Khandwa'
-        })
+    let cancelled = false
+
+    async function loadFacilities() {
+      setLoadingFacilities(true)
+      try {
+        const dbFacilities = await facilityService.getAll()
+        let list = Array.isArray(dbFacilities) ? [...dbFacilities] : []
+
+        if (initialFacilityId && !list.some(f => (f.id || f._id) === initialFacilityId)) {
+          if (liveOsmCache.has(initialFacilityId)) {
+            list.unshift(liveOsmCache.get(initialFacilityId))
+          }
+        }
+
+        if (cancelled) return
+
+        setFacilities(list)
+
+        if (initialFacilityId && list.some(f => (f.id || f._id) === initialFacilityId)) {
+          setSelectedFacilityId(initialFacilityId)
+        } else if (!selectedFacilityId && list.length > 0) {
+          setSelectedFacilityId(list[0].id || list[0]._id)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Unable to load facilities:', err)
+          setError(err?.message || 'Unable to load healthcare facilities.')
+        }
+      } finally {
+        if (!cancelled) setLoadingFacilities(false)
       }
     }
-    setFacilities(list)
-    if (!selectedFacilityId && list.length > 0) {
-      setSelectedFacilityId(list[0].id)
+
+    if (isOpen) loadFacilities()
+
+    return () => {
+      cancelled = true
     }
-  }, [initialFacilityId])
+  }, [isOpen, initialFacilityId])
 
   // Handle initialReferralId changes
   useEffect(() => {
@@ -384,18 +409,17 @@ function BookingModal({
       setSelectedReferralId(initialReferralId)
       const refItem = referrals.find(r => r.id === initialReferralId)
       if (refItem) {
-        // Find matching facility for referral destination
-        const matchingFac = MOCK_FACILITIES.find(f =>
-          f.name.toLowerCase().includes(refItem.to.toLowerCase()) ||
-          refItem.to.toLowerCase().includes(f.name.toLowerCase())
+        const matchingFac = facilities.find(f =>
+          f.name?.toLowerCase().includes(refItem.to.toLowerCase()) ||
+          refItem.to.toLowerCase().includes(f.name?.toLowerCase() || '')
         )
         if (matchingFac) {
-          setSelectedFacilityId(matchingFac.id)
+          setSelectedFacilityId(matchingFac.id || matchingFac._id)
         }
         setSymptoms(`Referral Consultation: ${refItem.reason} (${refItem.dept})`)
       }
     }
-  }, [initialReferralId, referrals])
+  }, [initialReferralId, referrals, facilities])
 
   // Handle referral selector changes
   const handleReferralChange = (refId) => {
@@ -405,11 +429,11 @@ function BookingModal({
     const refItem = referrals.find(r => r.id === refId)
     if (refItem) {
       const matchingFac = facilities.find(f =>
-        f.name.toLowerCase().includes(refItem.to.toLowerCase()) ||
-        refItem.to.toLowerCase().includes(f.name.toLowerCase())
+        f.name?.toLowerCase().includes(refItem.to.toLowerCase()) ||
+        refItem.to.toLowerCase().includes(f.name?.toLowerCase() || '')
       )
       if (matchingFac) {
-        setSelectedFacilityId(matchingFac.id)
+        setSelectedFacilityId(matchingFac.id || matchingFac._id)
       }
       if (!symptoms || symptoms.startsWith('Referral Consultation:')) {
         setSymptoms(`Referral Consultation: ${refItem.reason} (${refItem.dept})`)
@@ -417,25 +441,59 @@ function BookingModal({
     }
   }
 
-  // Get doctors for currently selected facility
-  const availableDoctors = useMemo(() => {
-    if (!selectedFacilityId) return []
-    const docs = MOCK_DOCTORS_BY_FACILITY[selectedFacilityId] || []
-    if (docs.length > 0) return docs
-    return [
-      { id: 'doc-default', name: 'On-Duty Medical Officer', specialization: 'General OPD / Family Medicine' }
-    ]
-  }, [selectedFacilityId])
-
-  // Ensure valid selected doctor
+  // Load all REAL approved + available doctors from Supabase.
+  // This lets the patient choose the doctor first, even if they do not know
+  // the doctor's assigned facility. Selecting a doctor automatically switches
+  // the Healthcare Facility to that doctor's facility_id.
   useEffect(() => {
-    if (availableDoctors.length > 0) {
-      const exists = availableDoctors.some(d => d.id === selectedDoctorId)
-      if (!exists) {
-        setSelectedDoctorId(availableDoctors[0].id)
+    let cancelled = false
+
+    async function loadDoctors() {
+      setLoadingDoctors(true)
+      setError('')
+
+      try {
+        const docs = await getAvailableDoctors()
+        const formatted = docs || []
+
+        if (cancelled) return
+
+        setAvailableDoctors(formatted)
+
+        setSelectedDoctorId(current => {
+          if (initialDoctorId && formatted.some(d => d.id === initialDoctorId)) {
+            return initialDoctorId
+          }
+          if (current && formatted.some(d => d.id === current)) return current
+          return ''
+        })
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Unable to load doctors:', err)
+          setAvailableDoctors([])
+          setSelectedDoctorId('')
+          setError(err?.message || 'Unable to load approved doctors.')
+        }
+      } finally {
+        if (!cancelled) setLoadingDoctors(false)
       }
     }
-  }, [selectedFacilityId, availableDoctors, selectedDoctorId])
+
+    if (isOpen) loadDoctors()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, initialDoctorId])
+
+  // When a doctor is selected, automatically select that doctor's assigned facility.
+  useEffect(() => {
+    if (!selectedDoctorId) return
+    const doctor = availableDoctors.find(d => d.id === selectedDoctorId)
+    if (doctor?.facility_id) {
+      setSelectedFacilityId(doctor.facility_id)
+    }
+  }, [selectedDoctorId, availableDoctors])
 
   const selectedReferral = useMemo(() => {
     return referrals.find(r => r.id === selectedReferralId) || null
@@ -445,6 +503,16 @@ function BookingModal({
     e.preventDefault()
     if (!date || !timeSlot) {
       setError('Please select both a date and time slot.')
+      return
+    }
+
+    if (!selectedFacilityId) {
+      setError('Please select a healthcare facility.')
+      return
+    }
+
+    if (!selectedDoctorId) {
+      setError('Please select an approved and available doctor.')
       return
     }
 
@@ -472,7 +540,7 @@ function BookingModal({
       setConfirmedAppt(booked)
       onBooked?.(booked)
 
-      
+
     } catch (err) {
       setError(err.message || 'Failed to book appointment. Please try again.')
     } finally {
@@ -599,13 +667,24 @@ function BookingModal({
           <label className="block text-xs font-semibold text-navy mb-1.5">Healthcare Facility</label>
           <select
             value={selectedFacilityId}
-            onChange={(e) => setSelectedFacilityId(e.target.value)}
+            onChange={(e) => {
+              const facilityId = e.target.value
+              setSelectedFacilityId(facilityId)
+              const selected = availableDoctors.find(d => d.id === selectedDoctorId)
+              if (selected && selected.facility_id !== facilityId) {
+                setSelectedDoctorId('')
+              }
+            }}
             className="w-full text-xs border border-border rounded-lg px-3 py-2 bg-surface text-text focus:outline-none focus:ring-2 focus:ring-teal"
             required
+            disabled={loadingFacilities}
           >
+            <option value="">
+              {loadingFacilities ? 'Loading facilities...' : 'Select healthcare facility'}
+            </option>
             {facilities.map(f => (
               <option key={f.id || f._id} value={f.id || f._id}>
-                {f.name} ({f.type}) — {f.district || 'Khandwa'}
+                {f.name} ({f.type}) — {f.district || 'Location not listed'}
               </option>
             ))}
           </select>
@@ -618,9 +697,22 @@ function BookingModal({
             value={selectedDoctorId}
             onChange={(e) => setSelectedDoctorId(e.target.value)}
             className="w-full text-xs border border-border rounded-lg px-3 py-2 bg-surface text-text focus:outline-none focus:ring-2 focus:ring-teal"
+            required
+            disabled={loadingDoctors}
           >
+            <option value="">
+              {loadingDoctors
+                ? 'Loading approved doctors...'
+                : availableDoctors.length === 0
+                  ? 'No approved doctors available'
+                  : 'Select doctor / specialist'}
+            </option>
+
             {availableDoctors.map(d => (
-              <option key={d.id} value={d.id}>
+              <option
+                key={d.id}
+                value={d.id}
+              >
                 {d.name} — {d.specialization}
               </option>
             ))}
@@ -687,7 +779,7 @@ export default function Appointments() {
   const navigate = useNavigate()
 
   const facilityId = searchParams.get('facilityId') || null
-  const doctorId   = searchParams.get('doctorId')   || null
+  const doctorId = searchParams.get('doctorId') || null
   const referralParam = searchParams.get('referralId') || null
   const initialTab = searchParams.get('tab') === 'referrals' ? 'referrals' : 'upcoming'
 

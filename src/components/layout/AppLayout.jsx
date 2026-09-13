@@ -23,7 +23,7 @@ const NAV_PATIENT = [
 const NAV_DOCTOR = [
   { href: '/doctor', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/doctor/queue', icon: Users, label: "Today's Queue" },
-  { href: '/doctor/referrals', icon: ClipboardList, label: 'Patients' },
+  { href: '/doctor/patients', icon: ClipboardList, label: 'Patients' },
   { href: '/doctor/follow-ups', icon: AlertCircle, label: 'Follow-ups' },
 ]
 
