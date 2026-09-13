@@ -13,7 +13,6 @@ import {
   updateQueueStatus,
   updateAppointmentStatus,
   updateDoctorAvailability,
-  getDoctorQueue,
   saveConsultationComplete,
   recordVitals,
   createPrescription,
@@ -310,6 +309,7 @@ export default function DoctorQueue() {
   const { user, demoMode } = useAuth()
   const navigate = useNavigate()
   const [doctor, setDoctor] = useState(null)
+  const [appointments, setAppointments] = useState([])
   const [queue, setQueue] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -323,11 +323,14 @@ export default function DoctorQueue() {
   const fetchDoctorAndQueue = useCallback(async () => {
     if (!isDoctorSession) {
       setDoctor(null)
+      setAppointments([])
       setQueue([])
       setLoading(false)
       return
     }
+
     setError('')
+
     try {
       const { data: doctorData, error: dErr } = await supabase
         .from('doctors')
@@ -341,8 +344,70 @@ export default function DoctorQueue() {
       if (dErr) throw dErr
       setDoctor(doctorData)
 
-      const rawQueue = await getDoctorQueue(doctorData.facility_id, doctorData.id)
-      setQueue(rawQueue)
+      const start = new Date()
+      start.setHours(0, 0, 0, 0)
+
+      const end = new Date(start)
+      end.setDate(end.getDate() + 1)
+
+      const [appointmentsResult, queueResult] = await Promise.all([
+        supabase
+          .from('appointments')
+          .select(`
+            id,
+            scheduled_at,
+            created_at,
+            facility_id,
+            status,
+            reason,
+            mode,
+            patients:patient_id (
+              id,
+              patient_code,
+              dob,
+              is_high_risk,
+              profiles:profile_id (
+                full_name,
+                phone
+              )
+            )
+          `)
+          .eq('doctor_id', doctorData.id)
+          .gte('scheduled_at', start.toISOString())
+          .lt('scheduled_at', end.toISOString())
+          .order('scheduled_at', { ascending: true }),
+
+        supabase
+          .from('queues')
+          .select(`
+            id,
+            appointment_id,
+            queue_number,
+            position,
+            status,
+            called_at,
+            started_at,
+            created_at,
+            appointments:appointment_id (
+              id,
+              doctor_id
+            )
+          `)
+          .eq('facility_id', doctorData.facility_id)
+          .gte('created_at', start.toISOString())
+          .lt('created_at', end.toISOString())
+          .order('position', { ascending: true }),
+      ])
+
+      if (appointmentsResult.error) throw appointmentsResult.error
+      if (queueResult.error) throw queueResult.error
+
+      setAppointments(appointmentsResult.data || [])
+      setQueue(
+        (queueResult.data || []).filter(
+          item => item.appointments?.doctor_id === doctorData.id
+        )
+      )
     } catch (err) {
       console.error('Failed to fetch doctor queue:', err)
       setError(err.message || 'Unable to load live queue.')
@@ -357,99 +422,148 @@ export default function DoctorQueue() {
   }, [navigate, user])
 
   useEffect(() => {
+    setLoading(true)
     fetchDoctorAndQueue()
   }, [fetchDoctorAndQueue])
 
-  // Realtime subscription
+  // Realtime: refresh when either appointments or queue rows change.
   useEffect(() => {
-    if (!doctor?.facility_id || !isDoctorSession) return undefined
+    if (!doctor?.id || !doctor?.facility_id || !isDoctorSession) return undefined
 
     const channel = supabase
-      .channel(`doctor-queue:${doctor.facility_id}`)
+      .channel(`doctor-queue:${doctor.id}`)
       .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'queues', filter: `facility_id=eq.${doctor.facility_id}`
+        event: '*',
+        schema: 'public',
+        table: 'appointments',
+        filter: `doctor_id=eq.${doctor.id}`,
+      }, fetchDoctorAndQueue)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'queues',
+        filter: `facility_id=eq.${doctor.facility_id}`,
       }, fetchDoctorAndQueue)
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [doctor?.facility_id, isDoctorSession, fetchDoctorAndQueue])
+  }, [doctor?.id, doctor?.facility_id, isDoctorSession, fetchDoctorAndQueue])
 
-  // Map queue to formatted patients
+  // IMPORTANT: appointments are the source of truth for today's list.
+  // A matching queues row is used when it exists, but is not required.
   const queuePatients = useMemo(() => {
-    if (!isDoctorSession) {
-      return []
-    }
-    return queue.map(item => {
-      const appt = item.appointments
-      const pat = appt?.patients
-      let priority = 'low'
-      if (item.status === 'emergency') priority = 'emergency'
-      else if (pat?.is_high_risk) priority = 'high'
+    if (!isDoctorSession) return []
 
-      return {
-        id: item.id,
-        appointment_id: appt?.id,
-        patient_id: pat?.id,
-        queue_no: item.queue_number,
-        queue_status: item.status,
-        name: pat?.profiles?.full_name || 'Patient',
-        age: getAge(pat?.dob),
-        reason: appt?.reason || 'General Consultation',
-        priority,
-        waiting_since: getWaitingTime(item.created_at, item.status),
-        appointment: appt?.scheduled_at ? new Date(appt.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—',
-      }
-    }).filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery) || p.reason.toLowerCase().includes(searchQuery) || String(p.queue_no).includes(searchQuery))
-  }, [queue, isDoctorSession, searchQuery])
+    const queueByAppointment = new Map(
+      queue
+        .filter(item => item.appointment_id)
+        .map(item => [item.appointment_id, item])
+    )
+
+    return appointments
+      .map((appt, index) => {
+        const item = queueByAppointment.get(appt.id)
+        const pat = appt?.patients
+        const appointmentStatus = String(appt.status || '').toLowerCase()
+        const queueStatus = item?.status || (appointmentStatus === 'in_progress' ? 'in_consultation' : appointmentStatus === 'completed' ? 'completed' : 'waiting')
+
+        let priority = 'low'
+        if (item?.status === 'emergency') priority = 'emergency'
+        else if (pat?.is_high_risk) priority = 'high'
+
+        return {
+          id: item?.id || `appointment-${appt.id}`,
+          queue_id: item?.id || null,
+          appointment_id: appt.id,
+          patient_id: pat?.id,
+          queue_no: item?.queue_number || `A-${String(index + 1).padStart(3, '0')}`,
+          queue_status: queueStatus,
+          name: pat?.profiles?.full_name || 'Patient',
+          age: getAge(pat?.dob),
+          reason: appt?.reason || 'General Consultation',
+          priority,
+          waiting_since: getWaitingTime(item?.created_at || appt.created_at || appt.scheduled_at, queueStatus),
+          appointment: appt?.scheduled_at
+            ? new Date(appt.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : '—',
+        }
+      })
+      .filter(p =>
+        !searchQuery ||
+        p.name.toLowerCase().includes(searchQuery) ||
+        p.reason.toLowerCase().includes(searchQuery) ||
+        String(p.queue_no).toLowerCase().includes(searchQuery)
+      )
+  }, [appointments, queue, isDoctorSession, searchQuery])
 
   const stats = useMemo(() => {
-    const waiting = queuePatients.filter(p => p.queue_status === 'waiting' || p.queue_status === 'emergency').length
+    const waiting = queuePatients.filter(
+      p => p.queue_status === 'waiting' || p.queue_status === 'emergency'
+    ).length
     const completed = queuePatients.filter(p => p.queue_status === 'completed').length
-    const highPriority = queuePatients.filter(p => p.priority === 'high' || p.priority === 'emergency').length
+    const highPriority = queuePatients.filter(
+      p => p.priority === 'high' || p.priority === 'emergency'
+    ).length
+
     return { waiting, completed, highPriority }
   }, [queuePatients])
 
   const handleStart = async (patient) => {
     setActivePatient(patient)
     setModalOpen(true)
-    if (isDoctorSession && patient.id && patient.appointment_id) {
-      try {
-        await Promise.all([
-          updateQueueStatus(patient.id, 'in_consultation'),
-          updateAppointmentStatus(patient.appointment_id, 'in_progress'),
-        ])
-        fetchDoctorAndQueue()
-      } catch (err) {
-        setError(err.message || 'Unable to start consultation.')
-        setModalOpen(false)
+
+    if (!isDoctorSession || !patient?.appointment_id) return
+
+    try {
+      const updates = [
+        updateAppointmentStatus(patient.appointment_id, 'in_progress'),
+      ]
+
+      if (patient.queue_id) {
+        updates.push(updateQueueStatus(patient.queue_id, 'in_consultation'))
       }
+
+      await Promise.all(updates)
+      await fetchDoctorAndQueue()
+    } catch (err) {
+      setError(err.message || 'Unable to start consultation.')
+      setModalOpen(false)
     }
   }
 
   const handleFinishConsultation = async (patient) => {
-    if (isDoctorSession && patient?.id && patient?.appointment_id) {
-      await Promise.all([
-        updateQueueStatus(patient.id, 'completed'),
-        updateAppointmentStatus(patient.appointment_id, 'completed'),
-      ])
-      await fetchDoctorAndQueue()
+    if (!isDoctorSession || !patient?.appointment_id) return
+
+    const updates = [
+      updateAppointmentStatus(patient.appointment_id, 'completed'),
+    ]
+
+    if (patient.queue_id) {
+      updates.push(updateQueueStatus(patient.queue_id, 'completed'))
     }
+
+    await Promise.all(updates)
+    await fetchDoctorAndQueue()
   }
 
   const handleNextPatient = async () => {
-    const next = queuePatients.find(p => p.queue_status === 'waiting' || p.queue_status === 'emergency')
-    if (next) {
-      handleStart(next)
-    }
+    const next = queuePatients.find(
+      p => p.queue_status === 'waiting' || p.queue_status === 'emergency'
+    )
+
+    if (next) handleStart(next)
   }
 
   const handleSkip = async (patient) => {
-    if (!patient?.id || !isDoctorSession) return
+    // A queue status can only be skipped when a real queues row exists.
+    if (!patient?.queue_id || !isDoctorSession) return
+
     setActionLoadingId(patient.id)
+
     try {
-      await updateQueueStatus(patient.id, 'skipped')
+      await updateQueueStatus(patient.queue_id, 'skipped')
       await fetchDoctorAndQueue()
     } catch (err) {
       setError(err.message || 'Unable to skip patient.')
@@ -460,6 +574,7 @@ export default function DoctorQueue() {
 
   const handleTogglePause = async () => {
     if (!doctor?.id || !isDoctorSession) return
+
     try {
       const updated = await updateDoctorAvailability(doctor.id, !doctor.is_available)
       setDoctor(prev => ({ ...prev, is_available: updated.is_available }))
@@ -476,39 +591,61 @@ export default function DoctorQueue() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-2xl font-bold text-text-primary">Today's Queue</h1>
-            <p className="text-text-muted text-sm">{facilityName} · {stats.waiting} patients waiting</p>
+            <p className="text-text-muted text-sm">
+              {facilityName} · {stats.waiting} patients waiting
+            </p>
           </div>
+
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={fetchDoctorAndQueue}>
               <RefreshCw className="w-3.5 h-3.5" /> Refresh
             </Button>
+
             <Button variant="outline" size="sm" onClick={handleTogglePause}>
               {doctor?.is_available === false ? 'Resume Queue' : 'Pause Queue'}
             </Button>
-            <Button className="bg-brand-default text-white hover:bg-brand-hover" size="sm" onClick={handleNextPatient} disabled={stats.waiting === 0}>
+
+            <Button
+              className="bg-brand-default text-white hover:bg-brand-hover"
+              size="sm"
+              onClick={handleNextPatient}
+              disabled={stats.waiting === 0}
+            >
               Next Patient
             </Button>
           </div>
         </div>
 
-        {demoMode && <Alert type="info" title="Doctor login required">Sign in with a Supabase doctor account to view your live queue.</Alert>}
-        {error && <Alert type="critical" title="Error">{error}</Alert>}
+        {demoMode && (
+          <Alert type="info" title="Doctor login required">
+            Sign in with a Supabase doctor account to view your live queue.
+          </Alert>
+        )}
 
-        {/* Stats */}
+        {error && (
+          <Alert type="critical" title="Error">
+            {error}
+          </Alert>
+        )}
+
         <div className="grid grid-cols-3 gap-4">
           {[
             { label: 'Waiting', value: stats.waiting, color: 'text-status-warning' },
             { label: 'Completed Today', value: stats.completed, color: 'text-status-success' },
             { label: 'High Priority', value: stats.highPriority, color: 'text-status-critical' },
           ].map(s => (
-            <div key={s.label} className="bg-surface-elevated rounded-xl border border-border-subtle p-4 text-center">
-              <div className={`text-3xl font-bold ${s.color}`}>{loading ? '—' : s.value}</div>
+            <div
+              key={s.label}
+              className="bg-surface-elevated rounded-xl border border-border-subtle p-4 text-center"
+            >
+              <div className={`text-3xl font-bold ${s.color}`}>
+                {loading ? '—' : s.value}
+              </div>
               <div className="text-xs text-text-muted mt-1">{s.label}</div>
             </div>
           ))}
         </div>
 
-        {/* Queue cards */}
         <div className="space-y-3">
           {loading ? (
             <div className="bg-surface-elevated rounded-xl border border-border-subtle p-8 text-center text-text-muted">
@@ -525,51 +662,94 @@ export default function DoctorQueue() {
               const isActioning = actionLoadingId === patient.id
 
               return (
-                <div key={patient.id} className={`bg-surface-elevated rounded-xl border p-4 hover:shadow-sm transition-shadow ${patient.priority === 'high' || patient.priority === 'emergency' ? 'border-status-critical/30' : 'border-border-subtle'}`}>
+                <div
+                  key={patient.id}
+                  className={`bg-surface-elevated rounded-xl border p-4 hover:shadow-sm transition-shadow ${
+                    patient.priority === 'high' || patient.priority === 'emergency'
+                      ? 'border-status-critical/30'
+                      : 'border-border-subtle'
+                  }`}
+                >
                   <div className="flex items-center gap-4 flex-wrap sm:flex-nowrap">
-                    {/* Queue number */}
                     <div className="w-14 h-14 rounded-xl bg-navy flex flex-col items-center justify-center flex-shrink-0">
                       <span className="text-xs text-surface/50">No.</span>
-                      <span className="font-bold text-brand-default font-mono">{patient.queue_no}</span>
+                      <span className="font-bold text-brand-default font-mono">
+                        {patient.queue_no}
+                      </span>
                     </div>
 
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-text-primary">{patient.name}</span>
                         <span className="text-sm text-text-muted">{patient.age} yrs</span>
                         <Badge variant={pm.variant}>{pm.label}</Badge>
-                        {(patient.priority === 'high' || patient.priority === 'emergency') && <AlertCircle className="w-4 h-4 text-status-critical" />}
-                        {patient.queue_status === 'in_consultation' && <Badge variant="info">Active Consultation</Badge>}
-                        {patient.queue_status === 'skipped' && <Badge variant="warning">Skipped</Badge>}
-                        {patient.queue_status === 'completed' && <Badge variant="success">Completed</Badge>}
+
+                        {(patient.priority === 'high' || patient.priority === 'emergency') && (
+                          <AlertCircle className="w-4 h-4 text-status-critical" />
+                        )}
+
+                        {patient.queue_status === 'in_consultation' && (
+                          <Badge variant="info">Active Consultation</Badge>
+                        )}
+
+                        {patient.queue_status === 'skipped' && (
+                          <Badge variant="warning">Skipped</Badge>
+                        )}
+
+                        {patient.queue_status === 'completed' && (
+                          <Badge variant="success">Completed</Badge>
+                        )}
                       </div>
+
                       <p className="text-sm text-text-muted mt-0.5">{patient.reason}</p>
+
                       <div className="flex items-center gap-3 mt-1.5 text-xs text-text-muted">
-                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" />Waiting {patient.waiting_since}</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Waiting {patient.waiting_since}
+                        </span>
                         <span>Appt: {patient.appointment}</span>
                       </div>
                     </div>
 
-                    {/* Actions */}
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <Button size="sm" variant="ghost" onClick={() => navigate(patient.patient_id ? `/doctor/patients?id=${patient.patient_id}` : '/doctor/patients')}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          navigate(
+                            patient.patient_id
+                              ? `/doctor/patients?id=${patient.patient_id}`
+                              : '/doctor/patients'
+                          )
+                        }
+                      >
                         Records
                       </Button>
-                      {!demoMode && patient.queue_status === 'waiting' && (
-                        <Button size="sm" variant="outline" disabled={isActioning} onClick={() => handleSkip(patient)}>
+
+                      {!demoMode && patient.queue_status === 'waiting' && patient.queue_id && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isActioning}
+                          onClick={() => handleSkip(patient)}
+                        >
                           <SkipForward className="w-3.5 h-3.5" /> Skip
                         </Button>
                       )}
+
                       <Button
                         size="sm"
-                        className={patient.queue_status === 'in_consultation'
-                          ? 'border border-border-subtle bg-canvas text-text-primary shadow-none hover:bg-bg'
-                          : 'bg-brand-default text-white hover:bg-brand-hover'}
+                        className={
+                          patient.queue_status === 'in_consultation'
+                            ? 'border border-border-subtle bg-canvas text-text-primary shadow-none hover:bg-bg'
+                            : 'bg-brand-default text-white hover:bg-brand-hover'
+                        }
                         onClick={() => handleStart(patient)}
                         disabled={patient.queue_status === 'completed'}
                       >
-                        <Play className="w-3.5 h-3.5" /> {patient.queue_status === 'in_consultation' ? 'Resume Consult' : 'Consult'}
+                        <Play className="w-3.5 h-3.5" />
+                        {patient.queue_status === 'in_consultation' ? 'Resume Consult' : 'Consult'}
                       </Button>
                     </div>
                   </div>
@@ -581,7 +761,7 @@ export default function DoctorQueue() {
       </div>
 
       <ConsultationModal
-        key={activePatient?.id || "none"}
+        key={activePatient?.id || 'none'}
         patient={activePatient}
         doctor={doctor}
         open={modalOpen}
