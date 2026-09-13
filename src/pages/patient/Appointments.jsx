@@ -22,8 +22,8 @@ import { Modal } from '../../components/ui/Modal'
 import { appointmentService, facilityService, liveOsmCache } from '../../services/api'
 import { notificationService } from '../../services/notificationService'
 
-import { MOCK_FACILITIES, MOCK_DOCTORS_BY_FACILITY, MOCK_REFERRALS, MOCK_PATIENT } from '../../lib/mockData'
-import { getMyReferrals } from '../../lib/db'
+import { MOCK_REFERRALS, MOCK_PATIENT } from '../../lib/mockData'
+import { getMyReferrals, getAvailableDoctors } from '../../lib/db'
 import {
   Calendar, Clock, MapPin, Video, User, CheckCircle2,
   AlertCircle, X, Loader2, Ban, FileText,
@@ -347,7 +347,7 @@ function BookingModal({
   onBooked
 }) {
   const [facilities, setFacilities] = useState([])
-  const [loadingFacilities, setLoadingFacilities] = useState(true)
+  const [loadingFacilities, setLoadingFacilities] = useState(false)
   const [availableDoctors, setAvailableDoctors] = useState([])
   const [loadingDoctors, setLoadingDoctors] = useState(false)
   const [selectedFacilityId, setSelectedFacilityId] = useState(initialFacilityId || '')
@@ -370,36 +370,48 @@ function BookingModal({
     return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
   }
 
-  // Load facilities dynamically from DB
+  // Load facilities dynamically from DB / service
   useEffect(() => {
     let cancelled = false
-    setLoadingFacilities(true)
-    facilityService.getAll()
-      .then(dbList => {
-        if (cancelled) return
-        let list = dbList && dbList.length > 0 ? dbList : [...MOCK_FACILITIES]
-        // If an initial facility was passed but not in DB results, prepend it
+
+    async function loadFacilities() {
+      setLoadingFacilities(true)
+      try {
+        const dbFacilities = await facilityService.getAll()
+        let list = Array.isArray(dbFacilities) && dbFacilities.length > 0 ? [...dbFacilities] : [...MOCK_FACILITIES]
+
         if (initialFacilityId && !list.some(f => (f.id || f._id) === initialFacilityId)) {
           if (liveOsmCache.has(initialFacilityId)) {
-            list = [liveOsmCache.get(initialFacilityId), ...list]
+            list.unshift(liveOsmCache.get(initialFacilityId))
           } else {
-            list = [{ id: initialFacilityId, _id: initialFacilityId, name: 'Selected Healthcare Centre', type: 'Clinic', district: 'Khandwa' }, ...list]
+            list.unshift({ id: initialFacilityId, _id: initialFacilityId, name: 'Selected Healthcare Centre', type: 'Clinic', district: 'Khandwa' })
           }
         }
+
+        if (cancelled) return
         setFacilities(list)
-        if (!selectedFacilityId && list.length > 0) {
+
+        if (initialFacilityId && list.some(f => (f.id || f._id) === initialFacilityId)) {
+          setSelectedFacilityId(initialFacilityId)
+        } else if (!selectedFacilityId && list.length > 0) {
           setSelectedFacilityId(list[0].id || list[0]._id)
         }
-      })
-      .catch(() => {
-        if (cancelled) return
-        const list = [...MOCK_FACILITIES]
-        setFacilities(list)
-        if (!selectedFacilityId && list.length > 0) setSelectedFacilityId(list[0].id)
-      })
-      .finally(() => { if (!cancelled) setLoadingFacilities(false) })
-    return () => { cancelled = true }
-  }, [initialFacilityId])
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Unable to load facilities:', err)
+          setFacilities([...MOCK_FACILITIES])
+        }
+      } finally {
+        if (!cancelled) setLoadingFacilities(false)
+      }
+    }
+
+    if (isOpen) loadFacilities()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, initialFacilityId])
 
   // Handle initialReferralId changes
   useEffect(() => {
@@ -407,11 +419,9 @@ function BookingModal({
       setSelectedReferralId(initialReferralId)
       const refItem = referrals.find(r => r.id === initialReferralId)
       if (refItem) {
-        // Find matching facility in live list (or fall back to MOCK)
-        const facList = facilities.length > 0 ? facilities : MOCK_FACILITIES
-        const matchingFac = facList.find(f =>
-          f.name.toLowerCase().includes(refItem.to.toLowerCase()) ||
-          refItem.to.toLowerCase().includes(f.name.toLowerCase())
+        const matchingFac = facilities.find(f =>
+          f.name?.toLowerCase().includes(refItem.to.toLowerCase()) ||
+          refItem.to.toLowerCase().includes(f.name?.toLowerCase() || '')
         )
         if (matchingFac) {
           setSelectedFacilityId(matchingFac.id || matchingFac._id)
@@ -429,8 +439,8 @@ function BookingModal({
     const refItem = referrals.find(r => r.id === refId)
     if (refItem) {
       const matchingFac = facilities.find(f =>
-        f.name.toLowerCase().includes(refItem.to.toLowerCase()) ||
-        refItem.to.toLowerCase().includes(f.name.toLowerCase())
+        f.name?.toLowerCase().includes(refItem.to.toLowerCase()) ||
+        refItem.to.toLowerCase().includes(f.name?.toLowerCase() || '')
       )
       if (matchingFac) {
         setSelectedFacilityId(matchingFac.id || matchingFac._id)
@@ -441,41 +451,55 @@ function BookingModal({
     }
   }
 
-  // Load doctors from DB whenever facility changes
+  // Load all REAL approved + available doctors from Supabase
   useEffect(() => {
-    if (!selectedFacilityId) return
     let cancelled = false
-    setLoadingDoctors(true)
-    facilityService.getById(selectedFacilityId)
-      .then(result => {
+
+    async function loadDoctors() {
+      setLoadingDoctors(true)
+      setError('')
+
+      try {
+        const docs = await getAvailableDoctors()
+        const formatted = docs || []
+
         if (cancelled) return
-        const docs = result?.doctors || []
-        if (docs.length > 0) {
-          setAvailableDoctors(docs)
-          // Reset doctor selection if current one not in new list
-          if (!docs.some(d => d.id === selectedDoctorId)) {
-            setSelectedDoctorId(docs[0].id)
+        setAvailableDoctors(formatted)
+
+        setSelectedDoctorId(current => {
+          if (initialDoctorId && formatted.some(d => d.id === initialDoctorId)) {
+            return initialDoctorId
           }
-        } else {
-          // Fallback to mock or a generic on-duty officer
-          const mockDocs = MOCK_DOCTORS_BY_FACILITY[selectedFacilityId] ||
-            [{ id: 'doc-default', name: 'On-Duty Medical Officer', specialization: 'General OPD / Family Medicine' }]
-          setAvailableDoctors(mockDocs)
-          if (!mockDocs.some(d => d.id === selectedDoctorId)) {
-            setSelectedDoctorId(mockDocs[0].id)
-          }
+          if (current && formatted.some(d => d.id === current)) return current
+          if (formatted.length > 0) return formatted[0].id
+          return ''
+        })
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Unable to load doctors:', err)
+          setAvailableDoctors([])
+          setSelectedDoctorId('')
         }
-      })
-      .catch(() => {
-        if (cancelled) return
-        const mockDocs = MOCK_DOCTORS_BY_FACILITY[selectedFacilityId] ||
-          [{ id: 'doc-default', name: 'On-Duty Medical Officer', specialization: 'General OPD / Family Medicine' }]
-        setAvailableDoctors(mockDocs)
-        setSelectedDoctorId(mockDocs[0]?.id || '')
-      })
-      .finally(() => { if (!cancelled) setLoadingDoctors(false) })
-    return () => { cancelled = true }
-  }, [selectedFacilityId])
+      } finally {
+        if (!cancelled) setLoadingDoctors(false)
+      }
+    }
+
+    if (isOpen) loadDoctors()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, initialDoctorId])
+
+  // When a doctor is selected, automatically select that doctor's assigned facility
+  useEffect(() => {
+    if (!selectedDoctorId) return
+    const doctor = availableDoctors.find(d => d.id === selectedDoctorId)
+    if (doctor?.facility_id) {
+      setSelectedFacilityId(doctor.facility_id)
+    }
+  }, [selectedDoctorId, availableDoctors])
 
   const selectedDoctor = useMemo(() => {
     return availableDoctors.find(d => d.id === selectedDoctorId) || null
@@ -531,6 +555,16 @@ function BookingModal({
     e.preventDefault()
     if (!date || !timeSlot) {
       setError('Please select both a date and time slot.')
+      return
+    }
+
+    if (!selectedFacilityId) {
+      setError('Please select a healthcare facility.')
+      return
+    }
+
+    if (!selectedDoctorId) {
+      setError('Please select an approved and available doctor.')
       return
     }
 
@@ -624,39 +658,27 @@ function BookingModal({
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted">Consultation Mode:</span>
-              <span className="font-semibold text-teal capitalize">
-                {confirmedAppt.consultationType || confirmedAppt.mode}
-              </span>
+              <span className="text-muted">Mode:</span>
+              <span className="font-semibold text-navy capitalize">{confirmedAppt.consultationType || confirmedAppt.mode || 'In-Person'}</span>
             </div>
-            {confirmedAppt.referralId && (
-              <div className="flex justify-between items-center bg-teal/10 p-2 rounded-lg border border-teal/20">
-                <span className="text-teal font-semibold flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  Referral Authorization:
-                </span>
-                <span className="font-bold text-navy font-mono">
-                  REF-{confirmedAppt.referralId.toUpperCase()} ({confirmedAppt.referralDept})
-                </span>
+            {confirmedAppt.referralDept && (
+              <div className="flex justify-between text-teal">
+                <span>Specialist Referral:</span>
+                <span className="font-semibold">{confirmedAppt.referralDept}</span>
               </div>
             )}
-            {confirmedAppt.symptoms && (
-              <div className="flex justify-between">
-                <span className="text-muted">Reason/Notes:</span>
-                <span className="font-medium text-navy truncate max-w-[200px]">{confirmedAppt.symptoms}</span>
-              </div>
-            )}
-            <div className="flex justify-between pt-2 border-t border-border">
-              <span className="text-muted">Queue Token:</span>
-              <span className="font-bold text-teal text-sm">
-                {confirmedAppt.queueNo || confirmedAppt.queue_no || 'A-032'}
-                {confirmedAppt.referralId && ' (Priority OPD)'}
-              </span>
+            <div className="flex justify-between">
+              <span className="text-muted">Priority OPD Queue:</span>
+              <span className="font-bold text-teal">{confirmedAppt.queueNo || confirmedAppt.queue_no || 'Assigned on Approval'}</span>
             </div>
           </div>
 
-          <Button className="w-full bg-teal text-white" onClick={handleClose}>
-            Done
+          <p className="text-[11px] text-muted mb-4">
+            You will receive a notification and real-time dashboard update as soon as the doctor clears your appointment.
+          </p>
+
+          <Button onClick={handleClose} className="w-full bg-teal text-white text-xs font-semibold py-2">
+            View My Appointments
           </Button>
         </div>
       </Modal>
@@ -664,21 +686,20 @@ function BookingModal({
   }
 
   return (
-    <Modal open={isOpen} onClose={handleClose} title="Book OPD / Specialist Appointment" size="md">
-      <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+    <Modal open={isOpen} onClose={handleClose} title="Book Appointment" size="md">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="flex items-center gap-2 p-3 bg-critical-bg text-critical text-xs rounded-lg border border-critical/20">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{error}</span>
+          <div className="p-3 bg-red-50 text-status-critical text-xs rounded-lg border border-red-200">
+            {error}
           </div>
         )}
 
-        {/* 1. Referral Link Selector */}
-        <div className="bg-bg/60 p-3 rounded-xl border border-border space-y-2">
-          <div className="flex items-center justify-between">
+        {/* 1. Referral Linkage (Optional / Auto-filled) */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
             <label className="text-xs font-semibold text-navy flex items-center gap-1.5">
-              <ClipboardList className="w-3.5 h-3.5 text-amber-500" />
-              Link Clinical Referral Slip (Optional)
+              <Share2 className="w-3.5 h-3.5 text-teal" />
+              Link an Approved Referral (Optional)
             </label>
             {selectedReferral && (
               <Badge variant="success" className="text-[10px]">Referral Applied</Badge>
@@ -712,16 +733,25 @@ function BookingModal({
           </label>
           <select
             value={selectedFacilityId}
-            onChange={(e) => setSelectedFacilityId(e.target.value)}
-            className="w-full text-xs border border-border rounded-lg px-3 py-2 bg-surface text-text focus:outline-none focus:ring-2 focus:ring-teal disabled:opacity-60"
+            onChange={(e) => {
+              const facilityId = e.target.value
+              setSelectedFacilityId(facilityId)
+              const selected = availableDoctors.find(d => d.id === selectedDoctorId)
+              if (selected && selected.facility_id && selected.facility_id !== facilityId) {
+                const docAtFac = availableDoctors.find(d => d.facility_id === facilityId)
+                setSelectedDoctorId(docAtFac ? docAtFac.id : '')
+              }
+            }}
+            className="w-full text-xs border border-border rounded-lg px-3 py-2 bg-surface text-text focus:outline-none focus:ring-2 focus:ring-teal"
             required
             disabled={loadingFacilities}
           >
-            {loadingFacilities ? (
-              <option value="">Loading facilities...</option>
-            ) : facilities.map(f => (
+            <option value="">
+              {loadingFacilities ? 'Loading facilities...' : 'Select healthcare facility'}
+            </option>
+            {facilities.map(f => (
               <option key={f.id || f._id} value={f.id || f._id}>
-                {f.name} ({f.type}) — {f.district || 'Khandwa'}
+                {f.name} ({f.type}) — {f.district || 'Location not listed'}
               </option>
             ))}
           </select>
@@ -736,16 +766,21 @@ function BookingModal({
           <select
             value={selectedDoctorId}
             onChange={(e) => setSelectedDoctorId(e.target.value)}
-            className="w-full text-xs border border-border rounded-lg px-3 py-2 bg-surface text-text focus:outline-none focus:ring-2 focus:ring-teal disabled:opacity-60"
+            className="w-full text-xs border border-border rounded-lg px-3 py-2 bg-surface text-text focus:outline-none focus:ring-2 focus:ring-teal"
+            required
             disabled={loadingDoctors}
           >
-            {loadingDoctors ? (
-              <option value="">Loading doctors...</option>
-            ) : availableDoctors.length === 0 ? (
-              <option value="doc-default">On-Duty Medical Officer — General OPD</option>
-            ) : availableDoctors.map(d => (
+            <option value="">
+              {loadingDoctors
+                ? 'Loading approved doctors...'
+                : availableDoctors.length === 0
+                  ? 'No approved doctors available'
+                  : 'Select doctor / specialist'}
+            </option>
+
+            {availableDoctors.map(d => (
               <option key={d.id} value={d.id}>
-                {d.name} — {d.specialization}
+                {d.name} — {d.specialization}{d.facility ? ` (${d.facility})` : ''}
               </option>
             ))}
           </select>
@@ -876,7 +911,7 @@ export default function Appointments() {
   const navigate = useNavigate()
 
   const facilityId = searchParams.get('facilityId') || null
-  const doctorId   = searchParams.get('doctorId')   || null
+  const doctorId = searchParams.get('doctorId') || null
   const referralParam = searchParams.get('referralId') || null
   const initialTab = searchParams.get('tab') === 'referrals' ? 'referrals' : 'upcoming'
 

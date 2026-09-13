@@ -390,6 +390,17 @@ function saveStoredAppointments(appts) {
   } catch {}
 }
 
+
+function toDbConsultationMode(mode) {
+  if (!mode || mode === 'in-person' || mode === 'in_person') return 'in_person';
+  return mode;
+}
+
+function toDisplayConsultationMode(mode) {
+  if (!mode || mode === 'in_person') return 'in-person';
+  return mode;
+}
+
 // ── Appointment Service ──────────────────────────────────────────
 export const appointmentService = {
   getAll: async () => {
@@ -476,7 +487,7 @@ export const appointmentService = {
           facilityId: appointmentData.facilityId,
           doctorId: isUuid(appointmentData.doctorId) ? appointmentData.doctorId : undefined,
           scheduledAt,
-          mode: appointmentData.consultationType || 'in-person',
+          mode: toDbConsultationMode(appointmentData.consultationType),
           reason: appointmentData.symptoms || 'General Consultation',
         });
 
