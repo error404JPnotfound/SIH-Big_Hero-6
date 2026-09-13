@@ -77,7 +77,7 @@ export async function getMyPatientRecord() {
       profiles:profile_id (full_name, phone, email)
     `)
     .eq('profile_id', session.user.id)
-    .single()
+    .maybeSingle()
   if (error) {
     throw error
   }
@@ -221,6 +221,11 @@ export async function updateAppointmentStatus(appointmentId, status) {
     .single()
   if (error) throw error
   return data
+}
+
+/** Approve appointment (doctor) */
+export async function approveAppointment(appointmentId) {
+  return updateAppointmentStatus(appointmentId, 'confirmed')
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -380,13 +385,17 @@ export async function getMyPrescriptions() {
     .from('prescriptions')
     .select(`
       id, issued_at, pdf_url,
-      doctors:doctor_id ( profiles:profile_id (full_name) ),
+      doctors:doctor_id (
+        specialization,
+        profiles:profile_id (full_name),
+        facilities:facility_id (name)
+      ),
       prescription_items (id, medicine_name, dosage, frequency, duration, instructions)
     `)
     .eq('patient_id', patient.id)
     .order('issued_at', { ascending: false })
   if (error) throw error
-  return data
+  return data || []
 }
 
 /** Create a prescription with items */
@@ -501,14 +510,19 @@ export async function getMyQueueEntry() {
 
 /** Cancel an appointment (patient action) */
 export async function cancelAppointment(appointmentId) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(appointmentId))
+  if (!isUuid) {
+    return { id: appointmentId, status: 'cancelled' }
+  }
+
   const { data, error } = await supabase
     .from('appointments')
     .update({ status: 'cancelled', updated_at: new Date().toISOString() })
     .eq('id', appointmentId)
     .select()
-    .single()
+    .maybeSingle()
   if (error) throw error
-  return data
+  return data || { id: appointmentId, status: 'cancelled' }
 }
 
 /** Get patient's consultation + diagnosis + prescription timeline for Records */
@@ -753,8 +767,8 @@ export async function getDoctorsByFacility(facilityId) {
   const { data, error } = await supabase
     .from('doctors')
     .select(`
-      id, specialization, is_available, account_status,
-      profiles:profile_id (full_name, phone)
+      id, specialization, is_available, account_status, profile_id,
+      profiles:profile_id (id, full_name, phone, email)
     `)
     .eq('facility_id', facilityId)
     .eq('is_available', true)
@@ -763,7 +777,26 @@ export async function getDoctorsByFacility(facilityId) {
     console.warn('[db] getDoctorsByFacility warning:', error.message)
     return []
   }
-  return data || []
+  // If profiles join returned null (RLS), fall back to a separate profiles query
+  const rows = data || []
+  const needsNameFetch = rows.some(d => !d.profiles?.full_name)
+  if (needsNameFetch) {
+    const profileIds = rows.map(d => d.profile_id).filter(Boolean)
+    if (profileIds.length > 0) {
+      const { data: profileRows } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, email')
+        .in('id', profileIds)
+      if (profileRows?.length) {
+        const profileMap = Object.fromEntries(profileRows.map(p => [p.id, p]))
+        return rows.map(d => ({
+          ...d,
+          profiles: profileMap[d.profile_id] || d.profiles || null
+        }))
+      }
+    }
+  }
+  return rows
 }
 
 /** Get all available active doctors (fallback for facilities without specific doctors) */

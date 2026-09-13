@@ -286,7 +286,9 @@ export default function PatientDashboard() {
               <div className="cursor-pointer" onClick={() => navigate('/patient/appointments?tab=referrals')}>
                 <KPICard title="Active Referrals" value={String(activeRefs.length)} subtitle={firstDept || 'None active'} icon={ClipboardList} color="warning"  />
               </div>
-              <KPICard title="Follow-ups Due"   value={String(dueSoonFU.length)}  subtitle={dueSoonFU.length ? `Next: ${nextDueDate}` : 'All on track'}  icon={AlertCircle} color="critical" />
+              <div className="cursor-pointer" onClick={() => navigate('/patient/appointments')}>
+                <KPICard title="Total Appointments" value={String(normalizedAppointments.length)} subtitle={upcoming.length ? `${upcoming.length} upcoming` : 'No upcoming'} icon={FileText} color="teal" />
+              </div>
             </>
           )}
         </div>

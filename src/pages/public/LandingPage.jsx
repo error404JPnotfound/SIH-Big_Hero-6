@@ -231,7 +231,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-2">
             <LanguageSwitcher dark={false} />
             <Button variant="ghost" className="text-text-primary hover:bg-canvas" onClick={() => navigate('/login')}>Log In</Button>
-            <Button className="bg-brand-default hover:bg-brand-hover/90 text-white" onClick={() => navigate('/register')}>Get Care</Button>
+            <Button className="bg-brand-default hover:bg-brand-hover/90 text-white" onClick={() => navigate('/register')}>Sign Up</Button>
           </div>
         </div>
       </header>
