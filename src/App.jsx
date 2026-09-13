@@ -60,7 +60,7 @@ export default function App() {
           <Route path="/doctor" element={protect('doctor', <DoctorDashboard />)} />
           <Route path="/doctor/queue" element={protect('doctor', <DoctorQueue />)} />
           <Route path="/doctor/patients" element={protect('doctor', <PatientProfile />)} />
-          <Route path="/doctor/referrals" element={protect('doctor', <DoctorWorklist type="referrals" />)} />
+          <Route path="/doctor/patients" element={protect('doctor', <DoctorWorklist type="patients" />)} />
           <Route path="/doctor/diagnostics" element={protect('doctor', <DoctorWorklist type="diagnostics" />)} />
           <Route path="/doctor/prescriptions" element={protect('doctor', <DoctorWorklist type="prescriptions" />)} />
           <Route path="/doctor/follow-ups" element={protect('doctor', <DoctorWorklist type="followUps" />)} />

@@ -790,16 +790,116 @@ export async function getAvailableDoctors() {
   const { data, error } = await supabase
     .from('doctors')
     .select(`
-      id, specialization, is_available, facility_id,
-      profiles:profile_id (full_name, phone)
+      id,
+      profile_id,
+      facility_id,
+      specialization,
+      department,
+      qualification,
+      experience_years,
+      designation,
+      consultation_type,
+      available_days,
+      working_hours,
+      emergency_duty,
+      is_available,
+      account_status,
+      profiles:profile_id (
+        id,
+        full_name,
+        phone,
+        email
+      ),
+      facilities:facility_id (
+        id,
+        name,
+        type,
+        district
+      )
     `)
-    .eq('is_available', true)
     .eq('account_status', 'approved')
+    .eq('is_available', true)
+    .order('created_at', { ascending: false })
+
   if (error) {
-    console.warn('[db] getAvailableDoctors warning:', error.message)
-    return []
+    console.error(
+      '[db] getAvailableDoctors error:',
+      error
+    )
+
+    throw error
   }
-  return data || []
+
+  return (data || []).map(doc => ({
+    id: doc.id,
+
+    profile_id: doc.profile_id,
+
+    facility_id: doc.facility_id,
+
+    name:
+      doc.profiles?.full_name ||
+      'Doctor',
+
+    email:
+      doc.profiles?.email ||
+      '',
+
+    phone:
+      doc.profiles?.phone ||
+      '',
+
+    specialization:
+      doc.specialization ||
+      doc.department ||
+      'General Medicine',
+
+    department:
+      doc.department ||
+      '',
+
+    qualification:
+      doc.qualification ||
+      '',
+
+    experience:
+      doc.experience_years ||
+      0,
+
+    designation:
+      doc.designation ||
+      'Doctor',
+
+    consultation_type:
+      doc.consultation_type,
+
+    available_days:
+      doc.available_days || [],
+
+    working_hours:
+      doc.working_hours,
+
+    emergency_duty:
+      doc.emergency_duty,
+
+    facility:
+      doc.facilities?.name ||
+      'Healthcare Facility',
+
+    facility_type:
+      doc.facilities?.type ||
+      '',
+
+    district:
+      doc.facilities?.district ||
+      '',
+
+    is_available:
+      doc.is_available,
+
+    account_status:
+      doc.account_status,
+  }))
 }
 
 // ──────────────────────────────────────────────────────────────
