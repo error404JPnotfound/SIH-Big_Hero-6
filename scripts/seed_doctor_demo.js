@@ -62,7 +62,7 @@ const email = process.env.DOCTOR_DEMO_EMAIL || 'diyathakrar68@gmail.com'
 const doctorName = process.env.DOCTOR_DEMO_NAME || 'Dr. Diya Thakrar'
 const profile = await account(email, doctorName, 'doctor', { allowExisting: true })
 await save('profiles', { id: profile, email, full_name: doctorName, role: 'doctor', facility_id: facility, is_active: true })
-await save('doctors', { id: doctor, profile_id: profile, facility_id: facility, specialization: 'General Medicine', reg_number: 'DEMO-DOCTOR-V1', is_available: true })
+await save('doctors', { id: doctor, profile_id: profile, facility_id: facility, specialization: 'General Medicine', reg_number: 'DEMO-DOCTOR-V1', qualification: 'MBBS', experience_years: 5, department: 'General Medicine', designation: 'Doctor', account_status: 'approved', is_available: true })
 // Print immediately so credentials remain available even if a later insert fails.
 console.log('Demo doctor email:', email)
 console.log(`Demo doctor password: ${doctorPassword}`)

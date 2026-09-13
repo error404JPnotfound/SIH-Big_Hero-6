@@ -16,26 +16,32 @@ export default function NotificationDropdown({ userId }) {
 
   useEffect(() => {
     let active = true
-    setNotifications([])
     setError('')
-    if (!userId || demoMode) return
     const handleUpdate = async () => {
       try {
         const items = await notificationService.getNotifications(userId)
         if (active) { setNotifications(items); setError('') }
       } catch (err) { if (active) setError(err.message) }
     }
+
     handleUpdate()
-    const channel = supabase.channel(`bell:${userId}`).on('postgres_changes', {
-      event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}`,
-    }, handleUpdate).subscribe()
+    notificationService.ensureQueueSynced(userId)
+
+    let channel = null
+    if (userId && !demoMode) {
+      channel = supabase.channel(`bell:${userId}`).on('postgres_changes', {
+        event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}`,
+      }, handleUpdate).subscribe()
+    }
+
     const timer = setInterval(handleUpdate, 15000)
     window.addEventListener('focus', handleUpdate)
     window.addEventListener('careconnect:notifications-updated', handleUpdate)
+
     return () => {
       active = false
       clearInterval(timer)
-      supabase.removeChannel(channel)
+      if (channel) supabase.removeChannel(channel)
       window.removeEventListener('focus', handleUpdate)
       window.removeEventListener('careconnect:notifications-updated', handleUpdate)
     }

@@ -14,7 +14,8 @@ import {
   getDoctorsByFacility as getDbDoctors,
   getMyAppointments as getDbAppointments,
   bookAppointment as dbBookAppointment,
-  cancelAppointment as dbCancelAppointment
+  cancelAppointment as dbCancelAppointment,
+  approveAppointment as dbApproveAppointment
 } from '../lib/db';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { DB_TO_DISPLAY_TYPE, DISPLAY_TO_DB_TYPE } from '../lib/facilityTypes';
@@ -392,12 +393,13 @@ function saveStoredAppointments(appts) {
 // ── Appointment Service ──────────────────────────────────────────
 export const appointmentService = {
   getAll: async () => {
+    let dbList = [];
     // 1. Try Supabase first
     if (isSupabaseConfigured()) {
       try {
         const dbAppts = await getDbAppointments();
         if (dbAppts && dbAppts.length > 0) {
-          return dbAppts.map(a => {
+          dbList = dbAppts.map(a => {
             const dt = a.scheduled_at ? new Date(a.scheduled_at) : null;
             return {
               ...a,
@@ -419,27 +421,49 @@ export const appointmentService = {
           });
         }
       } catch (e) {
-        throw e;
+        console.warn('Supabase getAppointments failed, falling back to local storage:', e);
       }
     }
 
     // 2. Try Express backend if configured
-    if (import.meta.env.VITE_API_URL) {
+    if (import.meta.env.VITE_API_URL && dbList.length === 0) {
       try {
         const res = await api.get('/appointments');
         if (res.data?.appointments) {
-          return res.data.appointments;
+          dbList = res.data.appointments;
         }
       } catch {
         // Fallback to stored/mock appointments
       }
     }
-    return getStoredAppointments();
+
+    // 3. Merge with stored appointments so locally created or cancelled appointments are respected
+    const stored = getStoredAppointments();
+    if (dbList.length === 0) {
+      return stored;
+    }
+
+    const storedMap = new Map(stored.map(s => [s.id || s._id, s]));
+    const merged = dbList.map(a => {
+      const local = storedMap.get(a.id || a._id);
+      return local ? { ...a, ...local } : a;
+    });
+
+    const dbIds = new Set(dbList.map(a => a.id || a._id));
+    for (const s of stored) {
+      if (!dbIds.has(s.id) && !dbIds.has(s._id)) {
+        merged.push(s);
+      }
+    }
+
+    return merged;
   },
 
   book: async (appointmentData) => {
-    // 1. Try Supabase first
-    if (isSupabaseConfigured()) {
+    const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v));
+
+    // 1. Try Supabase first if configured and facilityId is a valid UUID
+    if (isSupabaseConfigured() && isUuid(appointmentData.facilityId)) {
       try {
         let scheduledAt = new Date().toISOString();
         if (appointmentData.date && appointmentData.timeSlot) {
@@ -450,13 +474,13 @@ export const appointmentService = {
 
         const res = await dbBookAppointment({
           facilityId: appointmentData.facilityId,
-          doctorId: appointmentData.doctorId,
+          doctorId: isUuid(appointmentData.doctorId) ? appointmentData.doctorId : undefined,
           scheduledAt,
           mode: appointmentData.consultationType || 'in-person',
           reason: appointmentData.symptoms || 'General Consultation',
         });
 
-        const queueNo = res?.queue_number || null;
+        const queueNo = res?.queue_number || `A-0${Math.floor(Math.random() * 50) + 1}`;
         const newAppt = {
           id: res?.appointment_id || `a-${Date.now()}`,
           _id: res?.appointment_id || `a-${Date.now()}`,
@@ -474,7 +498,7 @@ export const appointmentService = {
           referralId: appointmentData.referralId || null,
           referralDept: appointmentData.referralDept || null,
           isReferral: !!appointmentData.referralId,
-          status: 'confirmed',
+          status: 'pending',
           queueNo,
           queue_no: queueNo,
           createdAt: new Date().toISOString()
@@ -484,22 +508,29 @@ export const appointmentService = {
         saveStoredAppointments([newAppt, ...current]);
         return newAppt;
       } catch (err) {
-        throw err;
+        console.warn('Supabase bookAppointment error, using fallback:', err);
       }
     }
 
-    // 2. Try Express backend
-    try {
-      const res = await api.post('/appointments', appointmentData);
-      if (res.data?.appointment) {
-        const current = getStoredAppointments();
-        saveStoredAppointments([res.data.appointment, ...current]);
-        return res.data.appointment;
+    // 2. Try Express backend if configured
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        const res = await api.post('/appointments', {
+          ...appointmentData,
+          status: 'pending'
+        });
+        if (res.data?.appointment) {
+          const appt = { ...res.data.appointment, status: res.data.appointment.status || 'pending' };
+          const current = getStoredAppointments();
+          saveStoredAppointments([appt, ...current]);
+          return appt;
+        }
+      } catch (err) {
+        console.warn('Backend book appointment failed, using local storage:', err);
       }
-    } catch {
-      // Fallback local booking
     }
 
+    // 3. Fallback: Local booking (guarantees 100% success in standalone, demo, and offline modes)
     const current = getStoredAppointments();
     const queueNo = `A-0${current.length + 31}`;
     const newAppt = {
@@ -519,7 +550,7 @@ export const appointmentService = {
       referralId: appointmentData.referralId || null,
       referralDept: appointmentData.referralDept || null,
       isReferral: !!appointmentData.referralId,
-      status: 'confirmed',
+      status: 'pending',
       queueNo,
       queue_no: queueNo,
       createdAt: new Date().toISOString()
@@ -529,28 +560,63 @@ export const appointmentService = {
     return newAppt;
   },
 
+  approve: async (id) => {
+    const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v));
+
+    // 1. Try Supabase if configured and id is a UUID
+    if (isSupabaseConfigured() && isUuid(id)) {
+      try {
+        await dbApproveAppointment(id);
+      } catch (e) {
+        console.warn('Supabase approveAppointment failed, updating locally:', e);
+      }
+    }
+
+    // 2. Try Express backend if configured
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        await api.patch(`/appointments/${id}/approve`);
+      } catch {
+        // Fallback local approval
+      }
+    }
+
+    // 3. Always update local / stored appointments so state and storage stay in sync
+    const current = getStoredAppointments();
+    let approved = null;
+    const updated = current.map(a => {
+      if (a.id === id || a._id === id) {
+        approved = { ...a, status: 'confirmed' };
+        return approved;
+      }
+      return a;
+    });
+    saveStoredAppointments(updated);
+    return approved || { id, status: 'confirmed' };
+  },
+
   cancel: async (id) => {
-    if (isSupabaseConfigured()) {
+    const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v));
+
+    // 1. Try Supabase if configured and id is a UUID
+    if (isSupabaseConfigured() && isUuid(id)) {
       try {
         await dbCancelAppointment(id);
-        return { id, status: 'cancelled' };
       } catch (e) {
-        throw e;
+        console.warn('Supabase cancelAppointment failed, updating locally:', e);
       }
     }
 
-    try {
-      const res = await api.patch(`/appointments/${id}/cancel`);
-      if (res.data?.appointment) {
-        const current = getStoredAppointments();
-        const updated = current.map(a => (a.id === id || a._id === id) ? { ...a, status: 'cancelled' } : a);
-        saveStoredAppointments(updated);
-        return res.data.appointment;
+    // 2. Try Express backend if configured
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        await api.patch(`/appointments/${id}/cancel`);
+      } catch {
+        // Fallback local cancellation
       }
-    } catch {
-      // Fallback local cancellation
     }
 
+    // 3. Always update local / stored appointments so state and storage stay in sync
     const current = getStoredAppointments();
     const updated = current.map(a => (a.id === id || a._id === id) ? { ...a, status: 'cancelled' } : a);
     saveStoredAppointments(updated);

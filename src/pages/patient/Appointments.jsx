@@ -20,6 +20,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { appointmentService, facilityService, liveOsmCache } from '../../services/api'
+import { notificationService } from '../../services/notificationService'
 
 import { MOCK_FACILITIES, MOCK_DOCTORS_BY_FACILITY, MOCK_REFERRALS, MOCK_PATIENT } from '../../lib/mockData'
 import { getMyReferrals } from '../../lib/db'
@@ -342,9 +343,13 @@ function BookingModal({
   initialDoctorId,
   initialReferralId,
   referrals = [],
+  existingAppointments = [],
   onBooked
 }) {
   const [facilities, setFacilities] = useState([])
+  const [loadingFacilities, setLoadingFacilities] = useState(true)
+  const [availableDoctors, setAvailableDoctors] = useState([])
+  const [loadingDoctors, setLoadingDoctors] = useState(false)
   const [selectedFacilityId, setSelectedFacilityId] = useState(initialFacilityId || '')
   const [selectedDoctorId, setSelectedDoctorId] = useState(initialDoctorId || '')
   const [selectedReferralId, setSelectedReferralId] = useState(initialReferralId || '')
@@ -356,26 +361,44 @@ function BookingModal({
   const [error, setError] = useState('')
   const [confirmedAppt, setConfirmedAppt] = useState(null)
 
-  // Load facilities
+  const DOCTOR_DAILY_CAPACITY = 2 // Maximum queue consultations per doctor per day
+
+  const formatDisplayDate = (dStr) => {
+    if (!dStr) return ''
+    const d = new Date(dStr)
+    if (isNaN(d.getTime())) return dStr
+    return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+  }
+
+  // Load facilities dynamically from DB
   useEffect(() => {
-    let list = [...MOCK_FACILITIES]
-    if (initialFacilityId && !list.some(f => f.id === initialFacilityId || f._id === initialFacilityId)) {
-      if (liveOsmCache.has(initialFacilityId)) {
-        list.unshift(liveOsmCache.get(initialFacilityId))
-      } else {
-        list.unshift({
-          id: initialFacilityId,
-          _id: initialFacilityId,
-          name: 'Selected Healthcare Centre',
-          type: 'Clinic',
-          district: 'Khandwa'
-        })
-      }
-    }
-    setFacilities(list)
-    if (!selectedFacilityId && list.length > 0) {
-      setSelectedFacilityId(list[0].id)
-    }
+    let cancelled = false
+    setLoadingFacilities(true)
+    facilityService.getAll()
+      .then(dbList => {
+        if (cancelled) return
+        let list = dbList && dbList.length > 0 ? dbList : [...MOCK_FACILITIES]
+        // If an initial facility was passed but not in DB results, prepend it
+        if (initialFacilityId && !list.some(f => (f.id || f._id) === initialFacilityId)) {
+          if (liveOsmCache.has(initialFacilityId)) {
+            list = [liveOsmCache.get(initialFacilityId), ...list]
+          } else {
+            list = [{ id: initialFacilityId, _id: initialFacilityId, name: 'Selected Healthcare Centre', type: 'Clinic', district: 'Khandwa' }, ...list]
+          }
+        }
+        setFacilities(list)
+        if (!selectedFacilityId && list.length > 0) {
+          setSelectedFacilityId(list[0].id || list[0]._id)
+        }
+      })
+      .catch(() => {
+        if (cancelled) return
+        const list = [...MOCK_FACILITIES]
+        setFacilities(list)
+        if (!selectedFacilityId && list.length > 0) setSelectedFacilityId(list[0].id)
+      })
+      .finally(() => { if (!cancelled) setLoadingFacilities(false) })
+    return () => { cancelled = true }
   }, [initialFacilityId])
 
   // Handle initialReferralId changes
@@ -384,18 +407,19 @@ function BookingModal({
       setSelectedReferralId(initialReferralId)
       const refItem = referrals.find(r => r.id === initialReferralId)
       if (refItem) {
-        // Find matching facility for referral destination
-        const matchingFac = MOCK_FACILITIES.find(f =>
+        // Find matching facility in live list (or fall back to MOCK)
+        const facList = facilities.length > 0 ? facilities : MOCK_FACILITIES
+        const matchingFac = facList.find(f =>
           f.name.toLowerCase().includes(refItem.to.toLowerCase()) ||
           refItem.to.toLowerCase().includes(f.name.toLowerCase())
         )
         if (matchingFac) {
-          setSelectedFacilityId(matchingFac.id)
+          setSelectedFacilityId(matchingFac.id || matchingFac._id)
         }
         setSymptoms(`Referral Consultation: ${refItem.reason} (${refItem.dept})`)
       }
     }
-  }, [initialReferralId, referrals])
+  }, [initialReferralId, referrals, facilities])
 
   // Handle referral selector changes
   const handleReferralChange = (refId) => {
@@ -409,7 +433,7 @@ function BookingModal({
         refItem.to.toLowerCase().includes(f.name.toLowerCase())
       )
       if (matchingFac) {
-        setSelectedFacilityId(matchingFac.id)
+        setSelectedFacilityId(matchingFac.id || matchingFac._id)
       }
       if (!symptoms || symptoms.startsWith('Referral Consultation:')) {
         setSymptoms(`Referral Consultation: ${refItem.reason} (${refItem.dept})`)
@@ -417,25 +441,87 @@ function BookingModal({
     }
   }
 
-  // Get doctors for currently selected facility
-  const availableDoctors = useMemo(() => {
-    if (!selectedFacilityId) return []
-    const docs = MOCK_DOCTORS_BY_FACILITY[selectedFacilityId] || []
-    if (docs.length > 0) return docs
-    return [
-      { id: 'doc-default', name: 'On-Duty Medical Officer', specialization: 'General OPD / Family Medicine' }
-    ]
+  // Load doctors from DB whenever facility changes
+  useEffect(() => {
+    if (!selectedFacilityId) return
+    let cancelled = false
+    setLoadingDoctors(true)
+    facilityService.getById(selectedFacilityId)
+      .then(result => {
+        if (cancelled) return
+        const docs = result?.doctors || []
+        if (docs.length > 0) {
+          setAvailableDoctors(docs)
+          // Reset doctor selection if current one not in new list
+          if (!docs.some(d => d.id === selectedDoctorId)) {
+            setSelectedDoctorId(docs[0].id)
+          }
+        } else {
+          // Fallback to mock or a generic on-duty officer
+          const mockDocs = MOCK_DOCTORS_BY_FACILITY[selectedFacilityId] ||
+            [{ id: 'doc-default', name: 'On-Duty Medical Officer', specialization: 'General OPD / Family Medicine' }]
+          setAvailableDoctors(mockDocs)
+          if (!mockDocs.some(d => d.id === selectedDoctorId)) {
+            setSelectedDoctorId(mockDocs[0].id)
+          }
+        }
+      })
+      .catch(() => {
+        if (cancelled) return
+        const mockDocs = MOCK_DOCTORS_BY_FACILITY[selectedFacilityId] ||
+          [{ id: 'doc-default', name: 'On-Duty Medical Officer', specialization: 'General OPD / Family Medicine' }]
+        setAvailableDoctors(mockDocs)
+        setSelectedDoctorId(mockDocs[0]?.id || '')
+      })
+      .finally(() => { if (!cancelled) setLoadingDoctors(false) })
+    return () => { cancelled = true }
   }, [selectedFacilityId])
 
-  // Ensure valid selected doctor
-  useEffect(() => {
-    if (availableDoctors.length > 0) {
-      const exists = availableDoctors.some(d => d.id === selectedDoctorId)
-      if (!exists) {
-        setSelectedDoctorId(availableDoctors[0].id)
+  const selectedDoctor = useMemo(() => {
+    return availableDoctors.find(d => d.id === selectedDoctorId) || null
+  }, [availableDoctors, selectedDoctorId])
+
+  const doctorName = selectedDoctor?.name || 'Attending Physician'
+  const doctorCapacity = selectedDoctor?.dailyCapacity || DOCTOR_DAILY_CAPACITY
+
+  // Calculate doctor's active queue appointments for selected date
+  const doctorAppointmentsForDate = useMemo(() => {
+    if (!date) return []
+    return existingAppointments.filter(a => {
+      if (a.status === 'cancelled') return false
+      const matchDoc = (a.doctorId && selectedDoctorId && a.doctorId === selectedDoctorId) ||
+        (a.doctor && doctorName && a.doctor.toLowerCase().includes(doctorName.toLowerCase())) ||
+        (doctorName && a.doctor && doctorName.toLowerCase().includes(a.doctor.toLowerCase()))
+      return matchDoc && a.date === date
+    })
+  }, [existingAppointments, selectedDoctorId, doctorName, date])
+
+  const isQueueFull = doctorAppointmentsForDate.length >= doctorCapacity
+
+  // Calculate the next date where doctor queue has available quota
+  const nextAvailableDate = useMemo(() => {
+    if (!date) return ''
+    let cur = new Date(date)
+    if (isNaN(cur.getTime())) cur = new Date()
+    for (let i = 1; i <= 14; i++) {
+      const candidate = new Date(cur)
+      candidate.setDate(candidate.getDate() + i)
+      const candidateStr = candidate.toISOString().split('T')[0]
+      const count = existingAppointments.filter(a => {
+        if (a.status === 'cancelled') return false
+        const matchDoc = (a.doctorId && selectedDoctorId && a.doctorId === selectedDoctorId) ||
+          (a.doctor && doctorName && a.doctor.toLowerCase().includes(doctorName.toLowerCase())) ||
+          (doctorName && a.doctor && doctorName.toLowerCase().includes(a.doctor.toLowerCase()))
+        return matchDoc && a.date === candidateStr
+      }).length
+      if (count < doctorCapacity) {
+        return candidateStr
       }
     }
-  }, [selectedFacilityId, availableDoctors, selectedDoctorId])
+    const fallback = new Date(cur)
+    fallback.setDate(fallback.getDate() + 1)
+    return fallback.toISOString().split('T')[0]
+  }, [date, existingAppointments, selectedDoctorId, doctorName, doctorCapacity])
 
   const selectedReferral = useMemo(() => {
     return referrals.find(r => r.id === selectedReferralId) || null
@@ -448,18 +534,22 @@ function BookingModal({
       return
     }
 
+    if (isQueueFull) {
+      setError(`Dr. ${doctorName}'s queue is completely full for ${formatDisplayDate(date)}. You can book on the next available day (${formatDisplayDate(nextAvailableDate)}).`)
+      return
+    }
+
     setLoading(true)
     setError('')
 
     const selectedFacility = facilities.find(f => f.id === selectedFacilityId || f._id === selectedFacilityId)
-    const selectedDoctor = availableDoctors.find(d => d.id === selectedDoctorId)
 
     try {
       const booked = await appointmentService.book({
         facilityId: selectedFacilityId,
         facilityName: selectedFacility?.name || 'Healthcare Centre',
         doctorId: selectedDoctorId,
-        doctorName: selectedDoctor?.name || 'Attending Physician',
+        doctorName,
         date,
         timeSlot,
         consultationType,
@@ -472,7 +562,21 @@ function BookingModal({
       setConfirmedAppt(booked)
       onBooked?.(booked)
 
-      
+      if (selectedReferral) {
+        notificationService.addNotification({
+          title: 'Referral Transmitted Successfully',
+          message: `Your referral REF-${selectedReferral.id.toUpperCase()} to ${selectedFacility?.name || 'Specialist Hospital'} (${selectedReferral.dept || 'Specialist'}) has been received and is pending clearance.`,
+          link: '/patient/appointments?tab=referrals',
+          type: 'referral'
+        })
+      } else {
+        notificationService.addNotification({
+          title: 'Appointment Request Submitted (Pending)',
+          message: `Your appointment request with ${doctorName} at ${selectedFacility?.name || 'Healthcare Facility'} is pending doctor approval for ${date} at ${timeSlot}.`,
+          link: '/patient/appointments',
+          type: 'appointment'
+        })
+      }
     } catch (err) {
       setError(err.message || 'Failed to book appointment. Please try again.')
     } finally {
@@ -488,17 +592,23 @@ function BookingModal({
 
   if (confirmedAppt) {
     return (
-      <Modal open={isOpen} onClose={handleClose} title="Appointment Booked!" size="md">
+      <Modal open={isOpen} onClose={handleClose} title="Appointment Request Submitted!" size="md">
         <div className="text-center py-4">
-          <div className="w-16 h-16 rounded-full bg-success-bg flex items-center justify-center mx-auto mb-3">
-            <CheckCircle2 className="w-9 h-9 text-success" />
+          <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-3">
+            <Clock className="w-9 h-9 text-amber-600" />
           </div>
-          <h3 className="text-lg font-bold text-navy mb-1">Appointment Confirmed</h3>
+          <h3 className="text-lg font-bold text-navy mb-1">Status: Pending Doctor Approval</h3>
           <p className="text-muted text-xs mb-4">
-            Your appointment has been registered with the facility{confirmedAppt.referralId ? ' and linked to your referral slip' : ''}.
+            Your appointment has been registered with status <strong>Pending</strong>. It will be officially confirmed once {confirmedAppt.doctor} reviews and approves it.
           </p>
 
           <div className="bg-bg rounded-xl p-4 text-left space-y-2 text-xs mb-5 border border-border">
+            <div className="flex justify-between items-center">
+              <span className="text-muted">Approval Status:</span>
+              <Badge variant="warning" className="capitalize text-[11px] font-bold">
+                Pending Approval
+              </Badge>
+            </div>
             <div className="flex justify-between">
               <span className="text-muted">Facility:</span>
               <span className="font-semibold text-navy">{confirmedAppt.facility}</span>
@@ -596,14 +706,20 @@ function BookingModal({
 
         {/* 2. Facility Selection */}
         <div>
-          <label className="block text-xs font-semibold text-navy mb-1.5">Healthcare Facility</label>
+          <label className="block text-xs font-semibold text-navy mb-1.5 flex items-center gap-1.5">
+            Healthcare Facility
+            {loadingFacilities && <Loader2 className="w-3 h-3 animate-spin text-teal" />}
+          </label>
           <select
             value={selectedFacilityId}
             onChange={(e) => setSelectedFacilityId(e.target.value)}
-            className="w-full text-xs border border-border rounded-lg px-3 py-2 bg-surface text-text focus:outline-none focus:ring-2 focus:ring-teal"
+            className="w-full text-xs border border-border rounded-lg px-3 py-2 bg-surface text-text focus:outline-none focus:ring-2 focus:ring-teal disabled:opacity-60"
             required
+            disabled={loadingFacilities}
           >
-            {facilities.map(f => (
+            {loadingFacilities ? (
+              <option value="">Loading facilities...</option>
+            ) : facilities.map(f => (
               <option key={f.id || f._id} value={f.id || f._id}>
                 {f.name} ({f.type}) — {f.district || 'Khandwa'}
               </option>
@@ -611,15 +727,23 @@ function BookingModal({
           </select>
         </div>
 
-        {/* 4. Doctor Selection */}
+        {/* 3. Doctor Selection */}
         <div>
-          <label className="block text-xs font-semibold text-navy mb-1.5">Doctor / Specialist</label>
+          <label className="block text-xs font-semibold text-navy mb-1.5 flex items-center gap-1.5">
+            Doctor / Specialist
+            {loadingDoctors && <Loader2 className="w-3 h-3 animate-spin text-teal" />}
+          </label>
           <select
             value={selectedDoctorId}
             onChange={(e) => setSelectedDoctorId(e.target.value)}
-            className="w-full text-xs border border-border rounded-lg px-3 py-2 bg-surface text-text focus:outline-none focus:ring-2 focus:ring-teal"
+            className="w-full text-xs border border-border rounded-lg px-3 py-2 bg-surface text-text focus:outline-none focus:ring-2 focus:ring-teal disabled:opacity-60"
+            disabled={loadingDoctors}
           >
-            {availableDoctors.map(d => (
+            {loadingDoctors ? (
+              <option value="">Loading doctors...</option>
+            ) : availableDoctors.length === 0 ? (
+              <option value="doc-default">On-Duty Medical Officer — General OPD</option>
+            ) : availableDoctors.map(d => (
               <option key={d.id} value={d.id}>
                 {d.name} — {d.specialization}
               </option>
@@ -627,7 +751,7 @@ function BookingModal({
           </select>
         </div>
 
-        {/* 5. Date & Time */}
+        {/* 4. Date & Time */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-navy mb-1.5">Date</label>
@@ -635,7 +759,10 @@ function BookingModal({
               type="date"
               value={date}
               min={new Date().toISOString().split('T')[0]}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => {
+                setDate(e.target.value)
+                setError('')
+              }}
               className="w-full text-xs border border-border rounded-lg px-3 py-2 bg-surface text-text focus:outline-none focus:ring-2 focus:ring-teal"
               required
             />
@@ -655,6 +782,59 @@ function BookingModal({
           </div>
         </div>
 
+        {/* 5. Doctor Queue Capacity & Next Day Suggestion */}
+        {isQueueFull ? (
+          <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2.5">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-bold text-amber-950">
+                    Doctor's Queue Full for {formatDisplayDate(date)}
+                  </p>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-800">
+                    {doctorAppointmentsForDate.length}/{doctorCapacity} Full
+                  </span>
+                </div>
+                <p className="text-xs text-amber-800 mt-1">
+                  {doctorName ? `Dr. ${doctorName}` : 'The doctor'} has reached the maximum daily consultation queue for this date.
+                  You can book your appointment on the next available day ({formatDisplayDate(nextAvailableDate)}).
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-1.5 border-t border-amber-500/20 flex-wrap gap-2">
+              <span className="text-[11px] text-amber-800 font-medium">
+                Next open day: <strong>{formatDisplayDate(nextAvailableDate)}</strong>
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  setDate(nextAvailableDate)
+                  setError('')
+                }}
+                className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold h-7 px-3 flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                Book for Next Day ({formatDisplayDate(nextAvailableDate)})
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between text-[11px] text-muted px-2 py-1 rounded-lg bg-surface border border-border/40">
+            <span className="flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-teal" />
+              <span>Doctor's Daily Queue:</span>
+            </span>
+            <span className={cn(
+              'font-medium px-2 py-0.5 rounded-full text-[10px]',
+              doctorAppointmentsForDate.length === 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+            )}>
+              {doctorAppointmentsForDate.length} of {doctorCapacity} slots filled
+            </span>
+          </div>
+        )}
+
         {/* 6. Symptoms / Notes */}
         <div>
           <label className="block text-xs font-semibold text-navy mb-1.5">Symptoms / Clinical Notes</label>
@@ -672,8 +852,17 @@ function BookingModal({
           <Button type="button" variant="outline" size="sm" onClick={handleClose}>
             Cancel
           </Button>
-          <Button type="submit" size="sm" className="bg-teal text-white" loading={loading}>
-            Confirm Appointment
+          <Button
+            type="submit"
+            size="sm"
+            className={cn(
+              'text-white text-xs font-semibold transition-colors',
+              isQueueFull ? 'bg-slate-400 cursor-not-allowed opacity-60' : 'bg-teal hover:bg-[#0F766E]'
+            )}
+            loading={loading}
+            disabled={isQueueFull}
+          >
+            {isQueueFull ? 'Queue Full — Choose Next Day' : 'Confirm Appointment Request'}
           </Button>
         </div>
       </form>
@@ -699,6 +888,25 @@ export default function Appointments() {
   const [selectedSlipReferral, setSelectedSlipReferral] = useState(null)
   const [loading, setLoading] = useState(true)
   const [cancellingId, setCancellingId] = useState(null)
+  const [approvingId, setApprovingId] = useState(null)
+
+  const handleApprove = async (id) => {
+    setApprovingId(id)
+    try {
+      const approved = await appointmentService.approve(id)
+      setAppointments(prev => prev.map(a => (a.id === id || a._id === id) ? { ...a, status: 'confirmed' } : a))
+      notificationService.addNotification({
+        title: 'Appointment Confirmed',
+        message: `Your appointment with ${approved.doctor || 'Doctor'} has been confirmed.`,
+        link: '/patient/appointments',
+        type: 'appointment'
+      })
+    } catch (err) {
+      alert('Failed to approve appointment: ' + err.message)
+    } finally {
+      setApprovingId(null)
+    }
+  }
 
   // Load appointments & referrals
   const loadAppointments = useCallback(async () => {
@@ -788,6 +996,12 @@ export default function Appointments() {
     try {
       await appointmentService.cancel(id)
       setAppointments(prev => prev.map(a => (a.id === id || a._id === id) ? { ...a, status: 'cancelled' } : a))
+      notificationService.addNotification({
+        title: 'Appointment Cancelled',
+        message: 'Your scheduled appointment has been cancelled.',
+        link: '/patient/appointments',
+        type: 'appointment'
+      })
     } catch (err) {
       alert('Failed to cancel appointment: ' + err.message)
     } finally {
@@ -1025,12 +1239,20 @@ export default function Appointments() {
 
                             {/* Action buttons & queue */}
                             <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t border-border flex-wrap">
-                              <span className="text-xs bg-navy text-white px-2.5 py-0.5 rounded-full font-mono font-semibold">
-                                Queue: {appt.queueNo || appt.queue_no || 'A-028'}
-                                {appt.referralId ? ' (Priority)' : ''}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs bg-navy text-white px-2.5 py-0.5 rounded-full font-mono font-semibold">
+                                  Queue: {appt.queueNo || appt.queue_no || 'A-028'}
+                                  {appt.referralId ? ' (Priority)' : ''}
+                                </span>
+                                {appt.status === 'pending' && (
+                                  <span className="text-[11px] text-amber-700 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-md flex items-center gap-1 font-medium">
+                                    <Clock className="w-3 h-3 text-amber-600" /> Awaiting Doctor Approval
+                                  </span>
+                                )}
+                              </div>
 
                               <div className="flex items-center gap-2 ml-auto">
+
                                 {isTele && appt.status === 'confirmed' && (
                                   <Button size="sm" className="bg-teal text-white text-xs h-7 px-3">
                                     <Video className="w-3 h-3" /> Join Teleconsult
@@ -1143,6 +1365,7 @@ export default function Appointments() {
         initialDoctorId={doctorId}
         initialReferralId={activeBookingReferralId}
         referrals={referrals}
+        existingAppointments={appointments}
         onBooked={(newAppt) => {
           setAppointments(prev => [newAppt, ...prev])
           // If booked via referral, update referral status to 'scheduled'
